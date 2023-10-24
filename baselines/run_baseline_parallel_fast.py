@@ -26,21 +26,21 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 10
+    ep_length = 2048 * 1
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 30, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length,
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length,
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
-                'use_screen_explore': False, 'reward_scale': 4, 'extra_buttons': False,
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0,
+                'use_screen_explore': False, 'reward_scale': 1, 'extra_buttons': False,
                 'explore_weight': 3 # 2.5
             }
     
     print(env_config)
     
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 28  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     #env_checker.check_env(env)
     learn_steps = 40
     # put a checkpoint here you want to start from
-    file_name = 'session_5a0e0d54/poke_573440_steps'
+    file_name = '_session_ece931d6/poke_983040_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
