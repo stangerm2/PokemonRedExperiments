@@ -5,6 +5,7 @@ import os
 from math import floor, sqrt
 import json
 from pathlib import Path
+from collections import deque
 
 import numpy as np
 from einops import rearrange
@@ -48,6 +49,7 @@ class RedGymEnv(Env):
         self.instance_id = str(uuid.uuid4())[:8] if 'instance_id' not in config else config['instance_id']
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
+        self.single_move = 4 # The amount of frames needed to move exactly 1 square, facing from any direction
         self.all_runs = []
 
         # Set this in SOME subclasses
@@ -108,7 +110,7 @@ class RedGymEnv(Env):
         self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config['headless']:
-            self.pyboy.set_emulation_speed(6)
+            self.pyboy.set_emulation_speed(5) # TODO: Config for slowing down speed, The emulation speed might not be accurate when speed-target is higher than 5
             
         self.reset()
 
@@ -150,7 +152,7 @@ class RedGymEnv(Env):
         self.last_health = 1
         self.total_healing_rew = 0
         self.died_count = 0
-        self.step_count = 0
+        self.step_count = 1
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
@@ -164,7 +166,9 @@ class RedGymEnv(Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
         
     def init_map_mem(self):
-        self.seen_coords = {}
+        self.max_step_memory = 3
+        self.seen_cords_order = deque() #list
+        self.seen_coords = {} #dict
 
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
@@ -188,34 +192,35 @@ class RedGymEnv(Env):
         return game_pixels_render
     
     def step(self, action):
+        print(f'current location: {self.get_current_location()}')
+        self.update_seen_coords(action)
 
         self.run_action_on_emulator(action)
-        self.append_agent_stats(action)
+        #self.append_agent_stats(action)
+
+        print(f'new location: {self.get_current_location()}')
+
 
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
 
         # trim off memory from frame for knn index
-        frame_start = 2 * (self.memory_height + self.mem_padding)
-        obs_flat = obs_memory[
-            frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
+        #frame_start = 2 * (self.memory_height + self.mem_padding)
+        #obs_flat = obs_memory[
+        #    frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
 
-        if self.use_screen_explore:
-            self.update_frame_knn_index(obs_flat)
-        else:
-            self.update_seen_coords()
-            
-        self.update_heal_reward()
+        #new_reward, new_prog = self.update_reward()
+        new_reward = self.update_reward()
 
-        new_reward, new_prog = self.update_reward()
-        
-        self.last_health = self.read_hp_fraction()
+        print(f'reward: {new_reward}\n')
+
+        #self.last_health = self.read_hp_fraction()
 
         # shift over short term reward memory
-        self.recent_memory = np.roll(self.recent_memory, 3)
-        self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
-        self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
-        self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
+        #self.recent_memory = np.roll(self.recent_memory, 3)
+        #self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
+        #self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
+        #self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
         step_limit_reached = self.check_if_done()
 
@@ -223,22 +228,68 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return obs_memory, new_reward*0.1, False, step_limit_reached, {}
+        return obs_memory, new_reward, False, step_limit_reached, {}
+
+    def get_termination_action(self, action):
+        match action:
+            case WindowEvent.PRESS_ARROW_DOWN:
+                return WindowEvent.RELEASE_ARROW_DOWN
+            case WindowEvent.PRESS_ARROW_UP:
+                return WindowEvent.RELEASE_ARROW_UP
+            case WindowEvent.PRESS_ARROW_LEFT:
+                return WindowEvent.RELEASE_ARROW_LEFT
+            case WindowEvent.PRESS_ARROW_RIGHT:
+                return WindowEvent.RELEASE_ARROW_RIGHT
+            case WindowEvent.PRESS_BUTTON_A:
+                return WindowEvent.RELEASE_BUTTON_A
+            case WindowEvent.PRESS_BUTTON_B:
+                return WindowEvent.RELEASE_BUTTON_B
+            case _:
+                return WindowEvent.PASS
 
     def run_action_on_emulator(self, action):
-        # press button then release after some steps
-        self.pyboy.send_input(self.valid_actions[action])
+        termination_action = self.get_termination_action(action)
+        print(f'action: {WindowEvent(action).__str__()}')
+        print(f'next cmd: {WindowEvent(termination_action).__str__()}')
+
+        if termination_action == WindowEvent.PASS:
+            print(f'ignoring command')
+            return
+
+        x_pos_cur = self.read_m(0xD362)
+        y_pos_cur = self.read_m(0xD361)
+
+        # preform a single input to game
+        self.pyboy.send_input(WindowEvent(action))
+
+        for i in range(self.single_move):
+            self.pyboy.tick()
+
+        self.pyboy.send_input(WindowEvent(termination_action))
+
+        x_pos_new = self.read_m(0xD362)
+        y_pos_new = self.read_m(0xD361)
+
+        # Bug check: AI is only allowed to move 0 or 1 spots per turn
+        assert abs(x_pos_cur - x_pos_new) + abs(y_pos_cur - y_pos_new) <= 1
+
+        # complete the frames needed to render a whole tile
+        for i in range(self.act_freq - self.single_move):
+            self.pyboy.tick()
+
+        '''
         # disable rendering when we don't need it
         if not self.save_video and self.headless:
             self.pyboy._rendering(False)
         for i in range(self.act_freq):
+            #print(f'count: {i}\n')
             # release action, so they are stateless
             if i == 8:
                 if action < 4:
                     # release arrow
                     self.pyboy.send_input(self.release_arrow[action])
                 if action > 3 and action < 6:
-                    # release button 
+                    # release button
                     self.pyboy.send_input(self.release_button[action - 4])
                 if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
@@ -246,9 +297,11 @@ class RedGymEnv(Env):
                 self.add_video_frame()
             if i == self.act_freq-1:
                 self.pyboy._rendering(True)
+            
             self.pyboy.tick()
         if self.save_video and self.fast_video:
             self.add_video_frame()
+        '''
     
     def add_video_frame(self):
         self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
@@ -293,45 +346,50 @@ class RedGymEnv(Env):
                 self.knn_index.add_items(
                     frame_vec, np.array([self.knn_index.get_current_count()])
                 )
-    
-    def update_seen_coords(self):
+
+    def get_current_location(self):
         x_pos = self.read_m(0xD362)
         y_pos = self.read_m(0xD361)
         map_n = self.read_m(0xD35E)
-        coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
-        if self.get_levels_sum() >= 22 and not self.levels_satisfied:
-            self.levels_satisfied = True
-            self.base_explore = len(self.seen_coords)
-            self.seen_coords = {}
-        
-        self.seen_coords[coord_string] = self.step_count
+
+        return f"x:{x_pos} y:{y_pos} m:{map_n}"
+
+    def update_seen_coords(self, action):
+        if self.get_current_location() in self.seen_coords:
+            return
+
+        self.seen_coords[self.get_current_location()] = self.step_count
+        self.seen_cords_order.append(self.get_current_location())
+
+        print(f'tracking cords: {list(self.seen_cords_order)}')
+
+        if len(self.seen_coords) >= self.max_step_memory:
+            del_key = self.seen_cords_order.popleft()
+            print(f'cord_count: {len(self.seen_coords)}, delete key: {del_key}')
+            del self.seen_coords[del_key]
 
     def update_reward(self):
         # compute reward
-        old_prog = self.group_rewards()
+        #old_prog = self.group_rewards()
         self.progress_reward = self.get_game_state_reward()
-        new_prog = self.group_rewards()
+        #new_prog = self.group_rewards()
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
         if new_step < 0 and self.read_hp_fraction() > 0:
             #print(f'\n\nreward went down! {self.progress_reward}\n\n')
             self.save_screenshot('neg_reward')
     
-        self.total_reward = new_total
-        return (new_step, 
-                   (new_prog[0]-old_prog[0], 
-                    new_prog[1]-old_prog[1], 
-                    new_prog[2]-old_prog[2])
-               )
+        #self.total_reward = new_total
+        return new_step
     
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
-        return (prog['level'] * 100 / self.reward_scale, 
-                self.read_hp_fraction()*2000, 
-                prog['explore'] * 150 / (self.explore_weight * self.reward_scale))
-               #(prog['events'], 
-               # prog['levels'] + prog['party_xp'], 
+        return (0,
+                0,
+                0)
+               #(prog['events'],
+               # prog['levels'] + prog['party_xp'],
                # prog['explore'])
 
     def create_exploration_memory(self):
@@ -385,7 +443,7 @@ class RedGymEnv(Env):
             for key, val in self.progress_reward.items():
                 prog_string += f' {key}: {val:5.2f}'
             prog_string += f' sum: {self.total_reward:5.2f}'
-            print(f'\r{prog_string}', end='', flush=True)
+            #print(f'{prog_string}\n', end='', flush=True)
         
         if self.step_count % 50 == 0:
             plt.imsave(
@@ -393,7 +451,7 @@ class RedGymEnv(Env):
                 self.render(reduce_res=False))
 
         if self.print_rewards and done:
-            print('', flush=True)
+            #print('', flush=True)
             if self.save_final_state:
                 fs_path = self.s_path / Path('final_states')
                 fs_path.mkdir(exist_ok=True)
@@ -445,7 +503,13 @@ class RedGymEnv(Env):
         base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
         post = (cur_size if self.levels_satisfied else 0) * post_rew
         return base + post
-    
+
+    def get_movement_reward(self):
+        if self.get_current_location() in self.seen_coords:
+            return 0
+
+        return 1
+
     def get_badges(self):
         return self.bit_count(self.read_m(0xD356))
 
@@ -508,17 +572,18 @@ class RedGymEnv(Env):
         '''
         
         state_scores = {
-            'event': self.reward_scale*self.update_max_event_rew(),  
+            #'event': self.reward_scale*self.update_max_event_rew(),
             #'party_xp': self.reward_scale*0.1*sum(poke_xps),
-            'level': self.reward_scale*self.get_levels_reward(), 
-            'heal': self.reward_scale*self.total_healing_rew,
-            'op_lvl': self.reward_scale*self.update_max_op_level(),
-            'dead': self.reward_scale*-0.1*self.died_count,
-            'badge': self.reward_scale*self.get_badges() * 5,
+            #'level': self.reward_scale*self.get_levels_reward(),
+            #'heal': self.reward_scale*self.total_healing_rew,
+            #'op_lvl': self.reward_scale*self.update_max_op_level(),
+            #'dead': self.reward_scale*-0.1*self.died_count,
+            #'badge': self.reward_scale*self.get_badges() * 5,
             #'op_poke': self.reward_scale*self.max_opponent_poke * 800,
             #'money': self.reward_scale* money * 3,
             #'seen_poke': self.reward_scale * seen_poke_count * 400,
-            'explore': self.reward_scale * self.get_knn_reward()
+            #'explore': self.reward_scale * self.get_knn_reward()
+            'move': self.reward_scale * self.get_movement_reward()
         }
         
         return state_scores
