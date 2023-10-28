@@ -17,6 +17,7 @@ import mediapy as media
 import pandas as pd
 from functools import lru_cache
 
+
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
@@ -52,6 +53,8 @@ class RedGymEnv(Env):
         self.reset_count = 0
         self.single_move = 4 # The amount of frames needed to move exactly 1 square, facing from any direction
         self.all_runs = []
+        self.interaction_started = False
+        self.battle_started = False
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -78,6 +81,25 @@ class RedGymEnv(Env):
             (0xc2F0, 0xc2F8)
         ]
 
+        self.ExperienceLocations = [
+            (0xD179, 0xD18A, 0xD18B),
+            (0xD1A5, 0xD1A6, 0xD1A7),
+            (0xD1D1, 0xD1D2, 0xD1D3),
+            (0xD1FD, 0xD1FE, 0xD1FF),
+            (0xD229, 0xD22A, 0xD22B),
+            (0xD255, 0xD256, 0xD257),
+        ]
+
+        # non-zero when dialog or battle started
+        self.dialog = 0x8800
+        self.battle = 0xD057
+
+        # CC51-CC53, interaction happening(text inc) usually all 0's but rare cases where 52 stays 0x14 (pokecenter),
+        # still the best flag to check text scrolling is done, there is nothing else whole memory scoured
+        self.interaction_1 = 0xCC51
+        self.interaction_1 = 0xCC52
+        self.interaction_1 = 0xCC53
+
         # When both of these registers are non-zero there is unfinished dialog text rendering
         # TODO: IDK what these registers actually are
         #self.NpcMovement = [
@@ -94,8 +116,8 @@ class RedGymEnv(Env):
             WindowEvent.PRESS_ARROW_LEFT,
             WindowEvent.PRESS_ARROW_RIGHT,
             WindowEvent.PRESS_ARROW_UP,
-            WindowEvent.PRESS_BUTTON_A,
-            WindowEvent.PRESS_BUTTON_B,
+            #WindowEvent.PRESS_BUTTON_A,
+            #WindowEvent.PRESS_BUTTON_B,
         ]
         
         if self.extra_buttons:
@@ -143,7 +165,7 @@ class RedGymEnv(Env):
         self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config['headless']:
-            self.pyboy.set_emulation_speed(5) # TODO: Config for slowing down speed, The emulation speed might not be accurate when speed-target is higher than 5
+            self.pyboy.set_emulation_speed(1) # TODO: Config for slowing down speed, The emulation speed might not be accurate when speed-target is higher than 5
             
         self.reset()
 
@@ -189,8 +211,10 @@ class RedGymEnv(Env):
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
+        self.interaction_started = False
         return self.render(), {}
-    
+
+
     def init_knn(self):
         # Declaring index
         self.knn_index = hnswlib.Index(space='l2', dim=self.vec_dim) # possible options are l2, cosine or ip
@@ -199,9 +223,10 @@ class RedGymEnv(Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
         
     def init_movement_memory(self):
-        self.max_step_memory = 60
+        self.max_step_memory = 600
         self.seen_cords_order = deque()
         self.seen_coords = {} #dict
+        self.seen_zones = set()
         self.new_map = False
         self.moved_location = False
 
@@ -227,17 +252,20 @@ class RedGymEnv(Env):
         return game_pixels_render
     
     def step(self, action):
-        #print(f'id: {id(self)}, current location: {self.get_location_str()}')
+        x_pox, y_pos, map_n = self.get_current_location()
+        print(f'id: {id(self)}, current location: {self.get_location_str(x_pox, y_pos, map_n)}')
         self.update_seen_coords(action)
 
         self.run_action_on_emulator(action)
         #self.append_agent_stats(action)
 
-        #print(f'id: {id(self)}, new location: {self.get_location_str()}')
+        x_pox, y_pos, map_n = self.get_current_location()
+        print(f'id: {id(self)}, new location: {self.get_location_str(x_pox, y_pos, map_n)}')
 
-        while not self.npcs_are_still():
-            print(f'******* Movement Waiting')
-            self.pyboy.tick()
+        #while not self.npcs_are_still():
+        #    print(f'******* Movement Waiting')
+        #    #self.pyboy.tick()
+        #    time.sleep(1/1000)
 
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
@@ -301,62 +329,81 @@ class RedGymEnv(Env):
             case _:
                 return WindowEvent.PASS
 
-    def run_action_on_emulator(self, action):
-        self.moved_location = False
+    def run_button_cmd(self, frames):
+        #TODO: Still need a way to verify button action is frame complete
+        for i in range(frames):
+            self.pyboy.tick()
 
+    def run_dpad_cmd(self, action, termination_action):
+        self.moved_location = False
+        x_pos_cur, y_pos_cur, n_map_cur = self.get_current_location()
+
+        # send the AI's key press to the emulator
+        self.pyboy.send_input(WindowEvent(action))
+
+        # Don't rely on a set number of frames to count 1 move, it can change randomly. Rather wait for sprite
+        # animation to begin and then end.
+        animation_started = False
+        counter = 0
+        for i in range(self.act_freq):
+            self.save_screenshot(x_pos_cur, y_pos_cur, n_map_cur, i)
+
+            self.pyboy.tick()
+
+            animation_count = self.read_m(0xC107)
+
+            print(f'Moving: {animation_count}, frame: {counter}')
+            counter += 1
+
+            if self.moved_location:
+                continue
+
+            # To be done we have to move and the animation must be completed, ignore running into walls for now
+            if ((x_pos_cur != self.read_m(0xD362) or y_pos_cur != self.read_m(0xD361) or n_map_cur != self.read_m(0xD35E))
+                and (animation_count == 0)):
+                self.moved_location = True
+                print(f'MOVED')
+                #break
+            elif animation_count != 0:
+                #print(f'Key Released')
+                self.pyboy.send_input(WindowEvent(termination_action))
+                animation_started = True
+
+        print(f'Frame Count: {counter}')
+
+        x_pos_new, y_pos_new, n_map_new = self.get_current_location()
+        #self.moved_location = abs(x_pos_cur - x_pos_new) + abs(y_pos_cur - y_pos_new) >= 1 or n_map_cur != n_map_new
+        print(f'moved_location: {self.moved_location}, self.new_map:{self.new_map}')
+        if self.moved_location:
+            # Bug check: AI is only allowed to move 0 or 1 spots per turn, new maps change x,y ref pos so don't count.
+            # When the game goes to a new map, it changes m first, then y,x will update on the next turn
+            if self.new_map:
+                self.new_map = False
+            elif n_map_new == n_map_cur:
+                print(f'id: {id(self)}, ASSERT - new location: {self.get_location_str(x_pos_new, y_pos_new, n_map_new)}')
+                #assert abs(x_pos_cur - x_pos_new) + abs(y_pos_cur - y_pos_new) <= 1
+            else:
+                self.new_map = True
+
+        #self.save_screenshot(x_pos_new, y_pos_new, n_map_new)
+
+    def run_action_on_emulator(self, action):
         termination_action = self.get_termination_action(action)
-        # print(f'action: {WindowEvent(action).__str__()}')
+        print(f'action: {WindowEvent(action).__str__()}')
         # print(f'next cmd: {WindowEvent(termination_action).__str__()}')
 
         if termination_action == WindowEvent.PASS:
             # print(f'ignoring command')
             return
 
-        x_pos_cur, y_pos_cur, n_map_cur = self.get_current_location()
+        if termination_action == WindowEvent.RELEASE_BUTTON_A or termination_action == WindowEvent.RELEASE_BUTTON_B:
+            self.run_button_cmd(self.act_freq)
+        else:
+            self.run_dpad_cmd(action, termination_action)
 
-        # send the AI's key press to the emulator
-        self.pyboy.send_input(WindowEvent(action))
-
-        # Don't rely on a set number of frames to count 1 move, it can change randomly. Rather try and check for a
-        # single movement and then send the key release
-        wait_frames = self.act_freq
-        frames_ticked = 0
-
-        for i in range(wait_frames):
-            wait_frames -= 1
-            frames_ticked += 1
-
-            if x_pos_cur != self.read_m(0xD362) or y_pos_cur != self.read_m(0xD361) or n_map_cur != self.read_m(0xD35E):
-                #print(f'MOVED')
-                self.moved_location = True
-                break
-
-            self.pyboy.tick()
-
-        self.pyboy.send_input(WindowEvent(termination_action))
-
-        if self.moved_location:
-            x_pos_new, y_pos_new, n_map_new = self.get_current_location()
-
-            # Bug check: AI is only allowed to move 0 or 1 spots per turn, new maps change x,y ref pos so don't count.
-            # When the game goes to a new map, it changes m first, then y,x will update on the next turn
-            if self.new_map:
-                self.new_map = False
-            elif n_map_new == n_map_cur:
-                # print(f'id: {id(self)}, ASSERT - new location: {self.get_location_str()}')
-                assert abs(x_pos_cur - x_pos_new) + abs(y_pos_cur - y_pos_new) <= 1
-            else:
-                self.new_map = True
-
-        # The turn/move is complete, we still need a completed frame/picture cycle for the AI.
-        for i in range(wait_frames):
-            frames_ticked += 1
-            self.pyboy.tick()
-
-        #self.save_screenshot('render')
-
-        # Bug Check: Make sure we always advance the correct number of frames
-        assert frames_ticked == self.act_freq
+        self.interaction_started = self.read_m(self.dialog) != 0
+        self.battle_started = self.read_m(self.battle) != 0
+        print(f'interaction: {self.interaction_started}, battle: {self.battle_started}')
 
     
     def add_video_frame(self):
@@ -411,13 +458,12 @@ class RedGymEnv(Env):
 
         return x_pos, y_pos, map_n
 
-    def get_location_str(self):
-        x_pos, y_pos, map_n = self.get_current_location()
-
+    def get_location_str(self, x_pos, y_pos, map_n):
         return f"x:{x_pos} y:{y_pos} m:{map_n}"
 
     def update_seen_coords(self, action):
-        current_location = self.get_location_str()
+        x_pox, y_pos, map_n = self.get_current_location()
+        current_location = self.get_location_str(x_pox, y_pos, map_n)
 
         if len(self.seen_cords_order) > self.max_step_memory:
             del_key = self.seen_cords_order.popleft()
@@ -429,8 +475,8 @@ class RedGymEnv(Env):
         if current_location in self.seen_coords:
             return
 
-        self.seen_coords[self.get_location_str()] = self.step_count
-        self.seen_cords_order.append(self.get_location_str())
+        self.seen_coords[current_location] = self.step_count
+        self.seen_cords_order.append(current_location)
 
 
     def update_reward(self, action):
@@ -577,20 +623,38 @@ class RedGymEnv(Env):
         return base + post
 
     def get_movement_reward(self, action):
-        reward = 3
+        reward = 1
 
+        x_pox, y_pos, map_n = self.get_current_location()
         # TEST: Hack to stay out of grass, stay in pallet town
         if self.read_m(0xD35E) == 12:
-            # print(f'***************STAY IN PALLET TOWN**************************')
+            print(f'***************STAY IN PALLET TOWN**************************')
             reward = -1
         # Ran into a wall, person, sign, ext..
-        elif not self.moved_location:
+        if not self.moved_location:
             reward = 0
         # Stayed too close to the same location for too long
-        elif self.get_location_str() in self.seen_coords:
-            reward = 1
+        elif self.get_location_str(x_pox, y_pos, map_n) in self.seen_coords:
+            reward = 0
 
         return reward
+
+    def get_zone_reward(self):
+        x_pox, y_pos, map_n = self.get_current_location()
+
+        if map_n in self.seen_zones:
+            return 0
+
+        self.seen_zones.add(map_n)
+
+        return 7
+
+    #def get_battle_reward(self):
+    #    if self.exp_profile.empty:
+    #        for pokemon in party:
+    #            self.exp_profile += exp
+
+    #    if self.battle_started && cur_exp != exp_now:
 
     # Existence is pain, use the time you have wisely
     def get_turn_reward(self):
@@ -670,17 +734,19 @@ class RedGymEnv(Env):
             #'seen_poke': self.reward_scale * seen_poke_count * 400,
             #'explore': self.reward_scale * self.get_knn_reward()
             'movement': self.reward_scale * self.get_movement_reward(action),
-            'turn': self.reward_scale * self.get_turn_reward()
+            #'zone': self.reward_scale * self.get_zone_reward(),
+            #'turn': self.reward_scale * self.get_turn_reward(),
+            #'battle': self.reward_scale * self.get_battle_reward()
         }
         
         return state_scores
     
-    def save_screenshot(self, name):
-        ss_dir = self.s_path / Path('screenshots')
-        ss_dir.mkdir(exist_ok=True)
+    def save_screenshot(self, x_pos_cur, y_pos_cur, n_map_cur, i = 0):
+        ss_dir = self.s_path / Path(f'screenshots/{n_map_cur}_{x_pos_cur}_{y_pos_cur}')
+        ss_dir.mkdir(parents=True, exist_ok=True)
         plt.imsave(
-            ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}_{self.step_count}.jpeg'),
-            self.render(reduce_res=False))
+            ss_dir / Path(f'{id(self)}_{self.step_count}_{i}.jpeg'),
+            self.render(reduce_res=False)) #TODO: Does this match exactly the same image when OBS reward is called
     
     def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
