@@ -31,15 +31,16 @@ if __name__ == '__main__':
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
-                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'use_screen_explore': False, 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
             }
     
     num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
-    
+    #env = DummyVecEnv([lambda: RedGymEnv(0,config=env_config)])
+
     #env_checker.check_env(env)
-    file_name = 'session_4da05e87_main_good/poke_439746560_steps'
+    file_name = '__session_4da05e87_main_good/poke_439746560_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
@@ -50,8 +51,9 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
-    
+        model = PPO("MlpPolicy", env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
+                     tensorboard_log="./logs/", seed=0, device="auto")
+
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
@@ -65,6 +67,6 @@ if __name__ == '__main__':
             action, _states = model.predict(obs, deterministic=False)
         obs, rewards, terminated, truncated, info = env.step(action)
         env.render()
-        if truncated:
-            break
+        #if truncated:
+        #    break
     env.close()
