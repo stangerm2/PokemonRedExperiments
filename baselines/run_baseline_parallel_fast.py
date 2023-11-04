@@ -73,7 +73,7 @@ if __name__ == '__main__':
     learn_steps = 40
     # put a checkpoint here you want to start from
     #file_name = 'baseline_session_ad2ee02f/poke_55296000_steps'
-    file_name = '__overnight_pallet_town_160m/poke_193658880_steps'
+    file_name = '__session_2229ba62/poke_145981440_steps'
 
 
 

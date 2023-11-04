@@ -19,6 +19,7 @@ import pandas as pd
 from functools import lru_cache
 import threading
 import math
+from collections import OrderedDict
 
 
 
@@ -60,8 +61,9 @@ class RedGymEnv(Env):
         self.interaction_started = False
         self.battle_started = False
         self.reward_memory = 10
-        self.obs_memory = np.zeros((self.reward_memory, 2), dtype=np.float32)
+        self.obs_memory = np.zeros((self.reward_memory, 3), dtype=np.float32)
         self.steps_discovered = 0
+        self.max_step_memory = 350 # ~410 steps in pallet
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -149,7 +151,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.reward_memory, 2), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.max_step_memory * 3 + 3,), dtype=np.float32)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -213,10 +215,10 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.obs_memory = np.zeros((self.reward_memory, 2), dtype=np.float32)
+        self.obs_memory = np.zeros((self.reward_memory, 3), dtype=np.float32)
         self.steps_discovered = 0
 
-        return self.obs_memory, {}
+        return np.zeros((self.max_step_memory * 3 + 3,), dtype=np.float32), {}
 
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
@@ -262,12 +264,12 @@ class RedGymEnv(Env):
         step_limit_reached = self.check_if_done()
 
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
-        x_scaled, y_scaled = self.normalize_xy_with_map(new_x_pos, new_y_pos, new_map_n)
 
-        for i in range(self.reward_memory - 1, -1, -1):  # Start from 498 and go to 0
-            self.obs_memory[i] = self.obs_memory[i - 1]
+        #for i in range(self.reward_memory - 1, -1, -1):  # Start from 498 and go to 0
+        #    self.obs_memory[i] = self.obs_memory[i - 1]
 
-        self.obs_memory[0] = np.array([x_scaled, y_scaled], dtype=np.float32)
+        #self.obs_memory[0] = np.array([new_map_n, new_x_pos, new_y_pos], dtype=np.float32)
+        obs = self.get_flattened_array(new_x_pos, new_y_pos, new_map_n)
 
         #self.save_screenshot(self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
@@ -277,7 +279,7 @@ class RedGymEnv(Env):
 
         #print(f'obs: {self.obs_memory}\n')
 
-        return self.obs_memory, new_reward * 0.1, False, step_limit_reached, {}
+        return obs, new_reward * 0.1, False, step_limit_reached, {}
 
     def init_knn(self):
         # Declaring index
@@ -287,15 +289,29 @@ class RedGymEnv(Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
 
     def init_movement_memory(self):
-        self.max_step_memory = 350 # ~410 steps in pallet
         self.seen_cords_order = deque()
-        self.seen_coords = {}  # dict
+        self.seen_coords = OrderedDict()
         self.seen_zones = set()
         self.new_map = False
         self.moved_location = False
 
-    def normalize_xy_with_map(self, x, y, m):
-        return (m << 8) | x, (m << 8) | y
+    def get_flattened_array(self, x_pos_cur, y_pos_cur, new_map_n):
+        # Create an array with the current x, y coordinates
+        current_coord_array = np.array([x_pos_cur, y_pos_cur, new_map_n])
+
+        # Create a flattened array of the memory's keys and values
+        memory_array = np.array(list(self.seen_coords.keys())).flatten()
+
+        req_size = self.max_step_memory * 3
+        padding_size = req_size - len(memory_array)
+
+        if padding_size > 0:
+            # Pad the array. If the padding size is not even, add the extra padding at the end
+            memory_array = np.pad(memory_array, (0, padding_size), 'constant', constant_values=0)
+        elif padding_size < 0:
+            raise ValueError("The memory array is larger than the desired size.")
+
+        return np.concatenate((current_coord_array, memory_array))
 
     @lru_cache(None)
     def npcs_are_still(self):
@@ -568,21 +584,19 @@ class RedGymEnv(Env):
         return f"x:{x_pos} y:{y_pos} m:{map_n}"
 
     def update_seen_coords(self, action):
-        x_pox, y_pos, map_n = self.get_current_location()
-        current_location = self.get_location_str(x_pox, y_pos, map_n)
+        x_pos, y_pos, map_n = self.get_current_location()
+        self.moved_location = True
 
-        if len(self.seen_cords_order) > self.max_step_memory:
-            del_key = self.seen_cords_order.popleft()
-            # print(f'cord_count: {len(self.seen_cords_order)}, delete key: {del_key}')
-            del self.seen_coords[del_key]
+        # If the coordinate is already in the memory, remove it to reinsert and update the order
+        if (x_pos, y_pos) in self.seen_coords:
+            del self.seen_coords[(x_pos, y_pos, map_n)]
+            self.moved_location = False
 
-        # print(f'order length: {len(self.seen_cords_order)}\n tracking cords: {list(self.seen_cords_order)}')
+        self.seen_coords[(x_pos, y_pos, map_n)] = None
 
-        if current_location in self.seen_coords:
-            return
-
-        self.seen_coords[current_location] = self.step_count
-        self.seen_cords_order.append(current_location)
+        # If the memory exceeds the size, remove the oldest item
+        if len(self.seen_coords) > self.max_step_memory:
+            self.seen_coords.popitem(last=False)
 
     def update_reward(self, action):
         # compute reward
@@ -663,7 +677,7 @@ class RedGymEnv(Env):
             for key, val in self.progress_reward.items():
                 prog_string += f' {key}: {val:5.2f}'
             prog_string += f' sum: {self.total_reward:5.2f}'
-            prog_string += f' reward: {self.total_reward:5.2f}, step_discovered: {len(self.seen_coords)}'
+            prog_string += f' reward: {self.total_reward:5.2f}, step_discovered: {self.steps_discovered}'
             print(f'\r{prog_string}', end='', flush=True)
 
         if self.step_count % 50 == 0:
@@ -740,7 +754,7 @@ class RedGymEnv(Env):
         elif not self.moved_location:
             reward = 0
         # Stayed too close to the same location for too long
-        elif self.get_location_str(x_pox, y_pos, map_n) in self.seen_coords:
+        elif (x_pox, y_pos, map_n) in self.seen_coords:
             reward = 1
         else:
             reward = 1 + bonus
