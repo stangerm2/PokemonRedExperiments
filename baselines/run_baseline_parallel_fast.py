@@ -44,6 +44,7 @@ if __name__ == '__main__':
 
     if 0 < num_cpu < 31:
         env_config['headless'] = False
+        use_wandb_logging = False
 
     print(env_config)
     
