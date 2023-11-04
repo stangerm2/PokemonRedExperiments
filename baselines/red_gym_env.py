@@ -295,7 +295,7 @@ class RedGymEnv(Env):
         self.moved_location = False
 
     def normalize_xy_with_map(self, x, y, m):
-        return (x / 256.0) + m, (y / 256.0) + m
+        return (m << 8) | x, (m << 8) | y
 
     @lru_cache(None)
     def npcs_are_still(self):
