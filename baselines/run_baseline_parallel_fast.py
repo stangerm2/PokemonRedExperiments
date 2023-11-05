@@ -53,6 +53,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    # env = DummyVecEnv([lambda: RedGymEnv(config=env_config)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                              name_prefix='poke')
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     learn_steps = 40
     # put a checkpoint here you want to start from
     # file_name = 'baseline_session_ad2ee02f/poke_55296000_steps'
-    file_name = '__overnight_pallet_town_160m/poke_193658880_steps'
+    file_name = '__session_2229ba62/poke_145981440_steps'
 
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
@@ -88,8 +89,8 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
-                    tensorboard_log=sess_path)
+        model = PPO("MlpPolicy", env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
+                    seed=0, device="auto", tensorboard_log=sess_path)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length) * num_cpu * 1000, callback=CallbackList(callbacks))
