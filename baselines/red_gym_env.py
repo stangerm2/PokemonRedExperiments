@@ -56,8 +56,8 @@ class RedGymEnv(Env):
         self.all_runs = []
         self.interaction_started = False
         self.battle_started = False
-        self.reward_memory = 350
-        self.obs_memory = np.zeros((self.reward_memory, 3), dtype=np.float32)
+        self.obs_memory_size = 10
+        self.obs_memory = np.zeros((self.obs_memory_size, 3), dtype=np.float32)
         self.steps_discovered = 0
 
         # Set this in SOME subclasses
@@ -146,7 +146,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.reward_memory, 3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.obs_memory_size, 3), dtype=np.float32)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -210,7 +210,7 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.obs_memory = np.zeros((self.reward_memory, 3), dtype=np.float32)
+        self.obs_memory = np.zeros((self.obs_memory_size, 3), dtype=np.float32)
         self.steps_discovered = 0
 
         return self.obs_memory, {}
@@ -260,10 +260,7 @@ class RedGymEnv(Env):
 
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
-        for i in range(self.reward_memory - 1, -1, -1):  # Start from 498 and go to 0
-            self.obs_memory[i] = self.obs_memory[i - 1]
-
-        self.obs_memory[0] = np.array([new_map_n, new_x_pos, new_y_pos], dtype=np.float32)
+        self.obs_memory[self.step_count % self.obs_memory_size] = np.array([new_map_n, new_x_pos, new_y_pos], dtype=np.float32)
 
         # self.save_screenshot(self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
