@@ -56,7 +56,7 @@ class RedGymEnv(Env):
         self.all_runs = []
         self.interaction_started = False
         self.battle_started = False
-        self.obs_memory_size = 10
+        self.obs_memory_size = 30
         self.obs_memory = np.zeros((self.obs_memory_size * 3,), dtype=np.float32)
         self.steps_discovered = 0
 
@@ -260,7 +260,7 @@ class RedGymEnv(Env):
 
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
-        pos = self.step_count % self.obs_memory_size
+        pos = (self.step_count % self.obs_memory_size) * 3
         self.obs_memory[pos] = new_map_n
         self.obs_memory[pos + 1] = new_x_pos
         self.obs_memory[pos + 2] = new_y_pos
@@ -271,7 +271,8 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        # print(f'obs: {self.obs_memory}\n')
+        #print(f'pos: {pos}\n')
+        #print(f'obs: {self.obs_memory}\n')
 
         return self.obs_memory, new_reward * 0.1, False, step_limit_reached, {}
 
