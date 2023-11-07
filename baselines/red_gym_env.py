@@ -18,6 +18,7 @@ import pandas as pd
 from functools import lru_cache
 import threading
 import math
+import torch
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -57,7 +58,7 @@ class RedGymEnv(Env):
         self.interaction_started = False
         self.battle_started = False
         self.obs_memory_size = 10
-        self.obs_memory = np.zeros((self.obs_memory_size + 1, 3), dtype=np.float32)
+        self.obs_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)  # Adjusted for 17 slots per step
         self.steps_discovered = 0
 
         # Set this in SOME subclasses
@@ -146,7 +147,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.obs_memory_size + 1, 3), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.obs_memory_size * 17,), dtype=np.float32)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -210,7 +211,7 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.obs_memory = np.zeros((self.obs_memory_size + 1, 3), dtype=np.float32)
+        self.obs_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)
         self.steps_discovered = 0
 
         return self.obs_memory, {}
@@ -259,13 +260,13 @@ class RedGymEnv(Env):
         step_limit_reached = self.check_if_done()
 
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
+        sin_pos = self.encode_coords(new_x_pos, new_y_pos)  # This should return a flat numpy array with length 32
+        self.update_memory(new_map_n, sin_pos)
 
-        current_location = self.get_location_str(new_x_pos, new_y_pos, new_map_n)
-        if current_location not in self.seen_coords:
-            for i in range(self.obs_memory_size, 0, -1):
-                self.obs_memory[i] = self.obs_memory[i - 1]
-
-        self.obs_memory[0] = np.array([new_map_n, new_x_pos, new_y_pos], dtype=np.float32)
+        #pos = self.step_count % self.obs_memory_size
+        #self.obs_memory[pos] = new_map_n
+        #self.obs_memory[pos + 1] = sin_pos[0]
+        #self.obs_memory[pos + 2] = sin_pos[1]
 
         # self.save_screenshot(self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
@@ -276,6 +277,30 @@ class RedGymEnv(Env):
         # print(f'obs: {self.obs_memory}\n')
 
         return self.obs_memory, new_reward * 0.1, False, step_limit_reached, {}
+
+    def update_memory(self, new_map_n, sin_pos):
+        # Calculate the starting index in self.obs_memory for the new data
+        start_index = self.step_count % self.obs_memory_size * 17  # 17 spots for each step (1 for map_n, 16 for sin_pos)
+
+        # Update the map number and sinusoidal encoded positions
+        if sin_pos.is_cuda:
+            sin_pos = sin_pos.cpu().numpy()
+        else:
+            sin_pos = sin_pos.numpy()
+        self.obs_memory[start_index + 1:start_index + 17] = sin_pos
+
+    def encode_coords(self, new_x_pos, new_y_pos, freqs=8):
+        """
+        Converts coordinates into a sinusoidal (fourier) embedding
+        new_x_pos, new_y_pos: The x and y coordinates to encode
+        freqs: number of frequencies/octaves to encode coordinates into
+        returns: array of encoded coordinates [1,freqs*2]
+        """
+        coords = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
+        return torch.hstack([
+            torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
+            torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
+        ])
 
     def init_knn(self):
         # Declaring index
