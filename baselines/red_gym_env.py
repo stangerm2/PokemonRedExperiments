@@ -27,7 +27,8 @@ from pyboy.utils import WindowEvent
 class RedGymEnv(Env):
 
     def __init__(
-            self, config=None):
+            self, fourier_table, config=None):
+        self.fourier_lookup = fourier_table
 
         self.debug = config['debug']
         self.s_path = config['session_path']
@@ -238,8 +239,8 @@ class RedGymEnv(Env):
         return game_pixels_render
 
     def step(self, action):
-        x_pos, y_pos, map_n = self.get_current_location()
-        # print(f'id: {id(self)}, current location: {self.get_location_str(x_pos, y_pos, map_n)}')
+        #x_pos, y_pos, map_n = self.get_current_location()
+        #print(f'id: {id(self)}, current location: {self.get_location_str(x_pos, y_pos, map_n)}')
         self.update_seen_coords(action)
 
         self.run_action_on_emulator(action)
@@ -259,9 +260,7 @@ class RedGymEnv(Env):
 
         step_limit_reached = self.check_if_done()
 
-        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
-        sin_pos = self.encode_coords(new_x_pos, new_y_pos)  # This should return a flat numpy array with length 32
-        self.update_memory(new_map_n, sin_pos)
+        self.update_obs_memory()
 
         #pos = self.step_count % self.obs_memory_size
         #self.obs_memory[pos] = new_map_n
@@ -278,29 +277,23 @@ class RedGymEnv(Env):
 
         return self.obs_memory, new_reward * 0.1, False, step_limit_reached, {}
 
-    def update_memory(self, new_map_n, sin_pos):
+    def update_obs_memory(self):
+        new_x_pos, new_y_pos, new_map_n = self.get_current_location()  # Assuming this method returns current x, y and map number
+
+        # Calculate the index in the Fourier table for the given x and y positions
+        index = new_x_pos * 256 + new_y_pos  # Adjust 256 based on your coordinate range (max_value + 1)
+
+        # Retrieve the precomputed encoding from the Fourier table
+        xy_encoding = self.fourier_lookup[index]
+        sin_pos = torch.cat([xy_encoding, torch.tensor([new_map_n], dtype=torch.float32)])
+
         # Calculate the starting index in self.obs_memory for the new data
-        start_index = self.step_count % self.obs_memory_size * 17  # 17 spots for each step (1 for map_n, 16 for sin_pos)
+        start_index = (self.step_count % self.obs_memory_size) * 17  # Adjust based on your obs_memory structure
 
-        # Update the map number and sinusoidal encoded positions
-        if sin_pos.is_cuda:
-            sin_pos = sin_pos.cpu().numpy()
-        else:
-            sin_pos = sin_pos.numpy()
-        self.obs_memory[start_index + 1:start_index + 17] = sin_pos
+        # Update the sinusoidal encoded positions starting from start_index + 1
+        # Make sure the size of sin_pos matches the size of the slice in obs_memory
+        self.obs_memory[start_index + 1:start_index + 17] = sin_pos[:16]
 
-    def encode_coords(self, new_x_pos, new_y_pos, freqs=8):
-        """
-        Converts coordinates into a sinusoidal (fourier) embedding
-        new_x_pos, new_y_pos: The x and y coordinates to encode
-        freqs: number of frequencies/octaves to encode coordinates into
-        returns: array of encoded coordinates [1,freqs*2]
-        """
-        coords = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
-        return torch.hstack([
-            torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
-            torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
-        ])
 
     def init_knn(self):
         # Declaring index
@@ -681,7 +674,7 @@ class RedGymEnv(Env):
             for key, val in self.progress_reward.items():
                 prog_string += f' {key}: {val:5.2f}'
             prog_string += f' sum: {self.total_reward:5.2f}'
-            prog_string += f' reward: {self.total_reward:5.2f}, step_discovered: {len(self.seen_coords)}'
+            prog_string += f' reward: {self.total_reward:5.2f}, step_discovered: {self.steps_discovered}'
             print(f'\r{prog_string}', end='', flush=True)
 
         if self.step_count % 50 == 0:
