@@ -294,6 +294,28 @@ class RedGymEnv(Env):
         # Make sure the size of sin_pos matches the size of the slice in obs_memory
         self.obs_memory[start_index + 1:start_index + 17] = sin_pos[:16]
 
+<<<<<<< Updated upstream
+=======
+        # Update the map number and sinusoidal encoded positions
+        if sin_pos.is_cuda:
+            sin_pos = sin_pos.cpu().numpy()
+        else:
+            sin_pos = sin_pos.numpy()
+        self.obs_memory[start_index + 1:start_index + 17] = sin_pos
+
+    def encode_coords(self, new_x_pos, new_y_pos, freqs=8):
+        """
+        Converts coordinates into a sinusoidal (fourier) embedding
+        new_x_pos, new_y_pos: The x and y coordinates to encode
+        freqs: number of frequencies/octaves to encode coordinates into
+        returns: array of encoded coordinates [1,freqs*2]
+        """
+        coords = torch.tensor([[new_x_pos, -new_y_pos]], dtype=torch.float32, device="cpu")
+        return torch.hstack([
+            torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
+            torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
+        ])
+>>>>>>> Stashed changes
 
     def init_knn(self):
         # Declaring index
