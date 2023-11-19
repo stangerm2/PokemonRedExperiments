@@ -89,11 +89,12 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MlpPolicy", env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
+        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=0, device="auto", tensorboard_log=sess_path)
 
-    for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length) * num_cpu * 1000, callback=CallbackList(callbacks))
+    print(model.policy)
+
+    model.learn(total_timesteps=(ep_length) * num_cpu * 1000, callback=CallbackList(callbacks))
 
     if use_wandb_logging:
         run.finish()
