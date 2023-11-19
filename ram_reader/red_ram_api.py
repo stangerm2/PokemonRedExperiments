@@ -9,13 +9,12 @@ from red_memory_player import *
 from enum import Enum
 
 # Assuming PyBoy is initialized elsewhere and imported here
-from pyboy import PyBoy
+# from pyboy import PyBoy
 
 class GameState(Enum):
     IN_BATTLE = 2
     TALKING = 4
     EXPLORING = 5
-    FOLLOWING = 5
     ON_PC = 10
     IN_START_MENU = 11
     GAME_STATE_UNKNOWN = 99
@@ -55,7 +54,7 @@ class Environment:
         self.memory_interface = PyBoyRAMInterface(pyboy)
 
     def get_text_box_state(self):
-        # Text box's can be a substate of other things, like battles so usage order matters
+        # Text box's can be a substate of other interactions, like battles so state usage order matters
         if self.memory_interface.read_memory(TEXT_ON_SCREEN):
             return GameState.TALKING
 
@@ -88,6 +87,15 @@ class Menus:
 
     def get_party_count(self):
         return self.memory_interface.read_memory(0xD89C)
+
+    def get_menu_state(self):
+        if self.memory_interface.read_memory(TILE_RIGHT_OF_PLAYER) == 0x7C:
+            return GameState.IN_START_MENU
+        # Text box's can be a substate of other things, like battles so usage order matters
+        elif self.memory_interface.read_memory(USING_PC_FLAG):
+            return GameState.TALKING
+
+        return GameState.GAME_STATE_UNKNOWN
 
 
 class Player:

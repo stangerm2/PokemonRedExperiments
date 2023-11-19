@@ -48,3 +48,4 @@ POSITION_IN_AIR = 0xD714
 AUDIO_CURRENT_TRACK = 0xC026  # The music that's playing in the background
 AUDIO_OVERLAY_SOUND = 0xC001  # Audio sounds that overlay the music, like bumping into a wall or entering a house
 AUDIO_CURRENT_TRACK_NO_DELAY = 0xD35B  # The music that's playing in the background (0xC026 has delay trans)
+AUDIO_FADE_OUT = 0x0CFC7

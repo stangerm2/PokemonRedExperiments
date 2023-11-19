@@ -19,6 +19,6 @@ class PokemonRedAPI:
             return game_state
 
         # Text: menu loc, poke stats
-        game_state = self.environment.get_text_box_state()
+        game_state = self.menus.get_menu_state()
         if game_state != GameState.GAME_STATE_UNKNOWN:
             return game_state

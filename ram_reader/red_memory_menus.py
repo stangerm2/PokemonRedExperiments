@@ -24,6 +24,8 @@ LAST_CURSOR_POSITION_PARTY_BILLS_PC = 0xCC2B # Stale after interaction
 LAST_CURSOR_POSITION_ITEM_SCREEN = 0xCC2C # Stale after interaction
 LAST_CURSOR_POSITION_START_MENU = 0xCC2D # Stale after interaction
 
+# Using PC
+USING_PC_FLAG = 0xCF0C
 
 # Text menu long
 # 7f 07 cb start menu
