@@ -3,8 +3,8 @@ PLAYER_LOADED_POKEMON = 0xCC2F # Index of fighting mon, stale out battle.
 
 # General Battle Flags and Status
 IN_BATTLE = 0xD057  # Battle type (normal, safari, etc.)
-BATTLE_MENU_SHOWING = 0xD058  # 0x0 during animation, Stale out of battle
-CURRENT_OPPONENT = 0xD059
+PARTY_XP_COUNT = 0xD058  # 0x0 during animation, Stale out of battle
+CURRENT_OPPONENT = 0xD059 # Set the moment battle anim begins, and clears on battle end
 BATTLE_TYPE = 0xD05A # (Normal battle, Safari Zone, Old Man battle...)
 CRITICAL_HIT_OHKO_FLAG = 0xD05E  # Critical hit or OHKO flag
 MOVE_MISSED = 0xD05F

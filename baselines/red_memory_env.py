@@ -47,6 +47,4 @@ POSITION_IN_AIR = 0xD714
 # Audio Cue's
 AUDIO_CURRENT_TRACK = 0xC026  # The music that's playing in the background
 AUDIO_OVERLAY_SOUND = 0xC001  # Audio sounds that overlay the music, like bumping into a wall or entering a house
-
-# animations
-ffd7
+AUDIO_CURRENT_TRACK_NO_DELAY = 0xD35B  # The music that's playing in the background (0xC026 has delay trans)
