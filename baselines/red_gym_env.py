@@ -300,7 +300,7 @@ class RedGymEnv(Env):
         returns: array of encoded coordinates [1,freqs*2]
         """
 
-        coords = torch.tensor([[self.cantor_pairing(new_x_pos, new_map_n), self.cantor_pairing(new_y_pos, new_map_n)]], dtype=torch.float32, device="cpu")
+        coords = torch.tensor([[self.cantor_pairing(new_x_pos, new_map_n) / 130561.0, self.cantor_pairing(new_y_pos, new_map_n)  / 130561.0]], dtype=torch.float32, device="cpu")
         return torch.hstack([
             torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
             torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
