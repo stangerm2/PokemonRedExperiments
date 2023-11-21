@@ -8,7 +8,62 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from tensorboard_callback import TensorboardCallback
+import torch
+import torch.nn as nn
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
+
+class CustomFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space, features_dim=64):
+        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+
+        # Constants
+        self.sin_freqs = 8
+        self.obs_memory_size = 10
+        n_map_values = 256  # Assuming map values range from 0-255
+        embedding_size = 10  # Size of the embedding vector for map values
+
+        # Embedding layer for map values
+        self.map_embedding = nn.Embedding(n_map_values, embedding_size)
+
+        # Convolutional layer to process the sequence of embedded map values
+        self.conv1d = nn.Conv1d(in_channels=10, out_channels=32, kernel_size=1)
+
+        # Fully connected layer for sinusoidally encoded positions
+        # Since pos is sin_freqs * 2 for each memory slot, and there are obs_memory_size slots
+        self.pos_extractor = nn.Linear(self.obs_memory_size * self.sin_freqs * 2, 32)
+
+        # Combined fully connected layer
+        self.combined_fc = nn.Sequential(
+            nn.Linear(352, features_dim),  # Adjusted dimensions
+            nn.ReLU()
+        )
+
+    def forward(self, observations):
+        # Extracting map and position observations
+        map_obs = observations["map"].long()
+        pos_obs = observations["pos"]
+
+        # Embedding for map values
+        # Reshape map_features for Conv1D: [batch_size, channels, sequence_length]
+        map_features = self.map_embedding(map_obs).permute(0, 2, 1)  # Remove the sequence_length dimension
+
+        # Conv1D layer
+        map_features = self.conv1d(map_features)
+
+        # Optionally, flatten or pool the output of the Conv1D layer
+        map_features = map_features.view(map_features.size(0), -1)
+
+        # print("Map Features Shape:", map_features.shape)  # Debugging statement
+
+        # Process the sinusoidally encoded positions
+        pos_features = self.pos_extractor(pos_obs)
+
+        # print("Position Features Shape:", pos_features.shape)  # Debugging statement
+
+        # Combine and process through the fully connected layer
+        combined = torch.cat((map_features, pos_features), dim=1)
+        return self.combined_fc(combined)
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -89,7 +144,8 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
+        model = PPO("MultiInputPolicy", env, policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
+                    verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=0, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)

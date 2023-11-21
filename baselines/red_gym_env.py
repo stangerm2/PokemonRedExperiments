@@ -60,7 +60,7 @@ class RedGymEnv(Env):
         self.sin_freqs = 8
         self.obs_memory_size = 10
         self.pos_memory = np.zeros((self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32)  # x,y * freq=8
-        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.float32)
+        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
         # Set this in SOME subclasses
@@ -153,7 +153,7 @@ class RedGymEnv(Env):
         self.observation_space = spaces.Dict(
             {
                 "pos": spaces.Box(low=-1, high=1, shape=(self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32),
-                "map": spaces.Box(low=0, high=1, shape=(self.obs_memory_size,), dtype=np.float32)
+                "map": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8)
             }
         )
 
@@ -220,7 +220,7 @@ class RedGymEnv(Env):
         self.reset_count += 1
         self.interaction_started = False
         self.pos_memory = np.zeros((self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32)
-        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.float32)
+        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
         return self._get_obs(), {}
@@ -323,7 +323,7 @@ class RedGymEnv(Env):
             sin_pos = sin_pos.numpy()
 
         self.pos_memory[start_index:start_index + self.sin_freqs * 2] = sin_pos
-        self.map_memory[start_pos] = new_map_n / 256.0
+        self.map_memory[start_pos] = new_map_n
 
 
 
