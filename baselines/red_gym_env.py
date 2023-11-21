@@ -58,7 +58,7 @@ class RedGymEnv(Env):
         self.interaction_started = False
         self.battle_started = False
         self.sin_freqs = 8
-        self.obs_memory_size = 10
+        self.obs_memory_size = 1
         self.pos_memory = np.zeros((self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32)  # x,y * freq=8
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
@@ -153,7 +153,8 @@ class RedGymEnv(Env):
         self.observation_space = spaces.Dict(
             {
                 "pos": spaces.Box(low=-1, high=1, shape=(self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32),
-                "map": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8)
+                "map": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8),
+                "surroundings": spaces.Box(low=0, high=255, shape=(4,), dtype=np.uint8) # 4 = up, left, down, right
             }
         )
 
@@ -252,28 +253,17 @@ class RedGymEnv(Env):
         self.update_seen_coords(action)
 
         self.run_action_on_emulator(action)
-        # self.no_run_action_on_emulator(self.valid_actions[action])
 
         self.append_agent_stats(action)
 
         x_pos, y_pos, map_n = self.get_current_location()
         # print(f'id: {id(self)}, new location: {self.get_location_str(x_pos, y_pos, map_n)}')
 
-        # while not self.npcs_are_still():
-        #    print(f'******* Movement Waiting')
-        #    #self.pyboy.tick()
-        #    time.sleep(1/1000)
-
         new_reward = self.update_reward(action)
 
         step_limit_reached = self.check_if_done()
 
         obs = self._get_obs()
-
-        #pos = self.step_count % self.obs_memory_size
-        #self.obs_memory[pos] = new_map_n
-        #self.obs_memory[pos + 1] = sin_pos[0]
-        #self.obs_memory[pos + 2] = sin_pos[1]
 
         # self.save_screenshot(self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
@@ -290,7 +280,8 @@ class RedGymEnv(Env):
 
         observation = {
             "pos": self.pos_memory,
-            "map": self.map_memory
+            "map": self.map_memory,
+            "surroundings": self.get_surrounding_tiles()
         }
 
         return observation
@@ -325,6 +316,18 @@ class RedGymEnv(Env):
         self.pos_memory[start_index:start_index + self.sin_freqs * 2] = sin_pos
         self.map_memory[start_pos] = new_map_n
 
+
+    def get_surrounding_tiles(self):
+        up = self.read_m(0xC434)
+        right = self.read_m(0xC45E)
+        down = self.read_m(0xC484)
+        left = self.read_m(0xC45A)
+
+        return np.array([up, right, down, left])
+
+    def get_surrounding_pos(self):
+        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
+        # could inc, dec all directions but wouldn't account for map trans paths
 
 
     def init_knn(self):

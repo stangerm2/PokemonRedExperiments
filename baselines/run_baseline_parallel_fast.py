@@ -17,52 +17,50 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
-        # Constants
-        self.sin_freqs = 8
-        self.obs_memory_size = 10
-        n_map_values = 256  # Assuming map values range from 0-255
-        embedding_size = 10  # Size of the embedding vector for map values
+        # Define separate embeddings for different features
+        embedding_size_map = 16
+        embedding_size_surroundings = 16
+        sin_freqs = 8
+        self.map_embedding = nn.Embedding(256, embedding_size_map)
+        self.surroundings_embedding = nn.Embedding(256, embedding_size_surroundings)
 
-        # Embedding layer for map values
-        self.map_embedding = nn.Embedding(n_map_values, embedding_size)
+        # Separate processors for each feature type
+        self.map_processor = nn.Sequential(
+            nn.Linear(embedding_size_map, 32),
+            nn.ReLU()
+        )
+        self.surroundings_processor = nn.Sequential(
+            nn.Linear(embedding_size_surroundings * 4, 64),  # 4 surroundings
+            nn.ReLU()
+        )
+        self.pos_processor = nn.Sequential(
+            nn.Linear(sin_freqs * 2, 32),  # Assuming 2D positions
+            nn.ReLU()
+        )
 
-        # Convolutional layer to process the sequence of embedded map values
-        self.conv1d = nn.Conv1d(in_channels=10, out_channels=32, kernel_size=1)
-
-        # Fully connected layer for sinusoidally encoded positions
-        # Since pos is sin_freqs * 2 for each memory slot, and there are obs_memory_size slots
-        self.pos_extractor = nn.Linear(self.obs_memory_size * self.sin_freqs * 2, 32)
-
-        # Combined fully connected layer
+        # Combine processed features with a final layer
         self.combined_fc = nn.Sequential(
-            nn.Linear(352, features_dim),  # Adjusted dimensions
+            nn.Linear(32 + 64 + 32, features_dim),
             nn.ReLU()
         )
 
     def forward(self, observations):
-        # Extracting map and position observations
-        map_obs = observations["map"].long()
-        pos_obs = observations["pos"]
+        # Process map feature
+        map_obs = observations["map"].int()
+        map_features = self.map_embedding(map_obs).squeeze(1)
+        map_processed = self.map_processor(map_features)
 
-        # Embedding for map values
-        # Reshape map_features for Conv1D: [batch_size, channels, sequence_length]
-        map_features = self.map_embedding(map_obs).permute(0, 2, 1)  # Remove the sequence_length dimension
+        # Process surroundings feature
+        surroundings_obs = observations["surroundings"].int()
+        surroundings_features = [self.surroundings_embedding(surroundings_obs[:, i]).squeeze(1) for i in range(4)]
+        surroundings_combined = torch.cat(surroundings_features, dim=1)
+        surroundings_processed = self.surroundings_processor(surroundings_combined)
 
-        # Conv1D layer
-        map_features = self.conv1d(map_features)
+        # Process position feature
+        pos_processed = self.pos_processor(observations["pos"])
 
-        # Optionally, flatten or pool the output of the Conv1D layer
-        map_features = map_features.view(map_features.size(0), -1)
-
-        # print("Map Features Shape:", map_features.shape)  # Debugging statement
-
-        # Process the sinusoidally encoded positions
-        pos_features = self.pos_extractor(pos_obs)
-
-        # print("Position Features Shape:", pos_features.shape)  # Debugging statement
-
-        # Combine and process through the fully connected layer
-        combined = torch.cat((map_features, pos_features), dim=1)
+        # Combine all processed features
+        combined = torch.cat((map_processed, surroundings_processed, pos_processed), dim=1)
         return self.combined_fc(combined)
 
 def make_env(rank, env_conf, seed=0):
