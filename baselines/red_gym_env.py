@@ -326,7 +326,7 @@ class RedGymEnv(Env):
         start_pos = self.step_count % self.obs_memory_size
 
         self.pos_memory[start_pos] = np.sin(2 * np.pi * new_x_pos / 255)
-        self.pos_memory[start_pos + 1] = np.sin(2 * np.pi * new_y_pos / 255)
+        self.pos_memory[start_pos + 1] = np.cos(2 * np.pi * new_y_pos / 255)
         self.pos_memory[start_pos + 2] = new_map_n / 256.0
 
 
