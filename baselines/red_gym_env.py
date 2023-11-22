@@ -23,7 +23,6 @@ import torch
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
-
 class RedGymEnv(Env):
 
     def __init__(
@@ -59,7 +58,9 @@ class RedGymEnv(Env):
         self.battle_started = False
         self.sin_freqs = 8
         self.obs_memory_size = 10
-        self.pos_memory = np.zeros((self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32)  # x,y * freq=8
+        self.pos_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)  # x,y * freq=8
+        self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
@@ -152,7 +153,8 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "pos": spaces.Box(low=-1, high=1, shape=(self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32),
+                "pos_x": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8),
+                "pos_y": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8),
                 "map": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8)
             }
         )
@@ -219,7 +221,9 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.pos_memory = np.zeros((self.obs_memory_size * self.sin_freqs * 2,), dtype=np.float32)
+        self.pos_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
@@ -289,7 +293,8 @@ class RedGymEnv(Env):
         self.update_coord_obs() # pos + map
 
         observation = {
-            "pos": self.pos_memory,
+            "pos_x": self.pos_x,
+            "pos_y": self.pos_y,
             "map": self.map_memory
         }
 
@@ -303,6 +308,7 @@ class RedGymEnv(Env):
         freqs: number of frequencies/octaves to encode coordinates into
         returns: array of encoded coordinates [1,freqs*2]
         """
+        '''
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
         torch_pos = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
@@ -312,17 +318,19 @@ class RedGymEnv(Env):
             torch.outer(torch_pos[:, 1], 2 ** torch.arange(self.sin_freqs, device="cpu")).sin()
         ])
 
-        # Calculate the starting index in self.obs_memory for the new data
-        start_pos = self.step_count % self.obs_memory_size
-        start_index = start_pos * self.sin_freqs * 2  # 16 spots for each step (0 for map_n, 16 for sin_pos)
-
         # Update the map number and sinusoidal encoded positions
         if sin_pos.is_cuda:
             sin_pos = sin_pos.cpu().numpy()
         else:
             sin_pos = sin_pos.numpy()
+        '''
+        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
-        self.pos_memory[start_index:start_index + self.sin_freqs * 2] = sin_pos
+        # Calculate the starting index in self.obs_memory for the new data
+        start_pos = self.step_count % self.obs_memory_size
+
+        self.pos_x[start_pos] = new_x_pos
+        self.pos_y[start_pos] = new_y_pos
         self.map_memory[start_pos] = new_map_n
 
 

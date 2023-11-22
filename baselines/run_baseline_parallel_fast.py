@@ -12,58 +12,51 @@ import torch
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
+# Embedding sizes
+embedding_size_x = 8
+embedding_size_y = 8
+embedding_size_map = 8
+POS_MEMORY_SIZE = 10
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
-        # Constants
-        self.sin_freqs = 8
-        self.obs_memory_size = 10
-        n_map_values = 256  # Assuming map values range from 0-255
-        embedding_size = 4  # Size of the embedding vector for map values
+        self.x_embedding = nn.Embedding(256, embedding_size_x)
+        self.y_embedding = nn.Embedding(256, embedding_size_y)
+        self.map_embedding = nn.Embedding(256, embedding_size_map)
 
-        # Embedding layer for map values
-        self.map_embedding = nn.Embedding(n_map_values, embedding_size)
+        # Assuming each sequence length is 10
+        sequence_length = 6
 
-        # Convolutional layer to process the sequence of embedded map values
-        self.conv1d = nn.Conv1d(in_channels=embedding_size, out_channels=16, kernel_size=1)
+        # RNN layer
+        self.rnn = nn.GRU(input_size=embedding_size_x + embedding_size_y + embedding_size_map,
+                          hidden_size=64,
+                          num_layers=1,
+                          batch_first=True)
 
-        # Fully connected layer for sinusoidally encoded positions
-        # Since pos is sin_freqs * 2 for each memory slot, and there are obs_memory_size slots
-        self.pos_extractor = nn.Linear(self.obs_memory_size * self.sin_freqs * 2, 32)
-
-        # Combined fully connected layer
-        self.combined_fc = nn.Sequential(
-            nn.Linear(192, features_dim),  # Adjusted dimensions
-            nn.ReLU()
-        )
+        # Linear layer for processing RNN output
+        self.fc = nn.Linear(64 * POS_MEMORY_SIZE, features_dim)
 
     def forward(self, observations):
-        # Extracting map and position observations
-        map_obs = observations["map"].long()
-        pos_obs = observations["pos"]
+        # Embed each x and y coordinate in the sequence
+        x_embedded = self.x_embedding(observations["pos_x"].long()).view(-1, 10, embedding_size_x)
+        y_embedded = self.y_embedding(observations["pos_y"].long()).view(-1, 10, embedding_size_y)
+        map_embedded = self.map_embedding(observations["map"].long()).view(-1, 10, embedding_size_map)
 
-        # Embedding for map values
-        # Reshape map_features for Conv1D: [batch_size, channels, sequence_length]
-        map_features = self.map_embedding(map_obs).permute(0, 2, 1)  # Remove the sequence_length dimension
+        # Concatenate embeddings
+        combined_embeddings = torch.cat((x_embedded, y_embedded, map_embedded), dim=2)
 
-        # Conv1D layer
-        map_features = self.conv1d(map_features)
+        # Process sequence with RNN
+        rnn_output, _ = self.rnn(combined_embeddings)
 
-        # Optionally, flatten or pool the output of the Conv1D layer
-        map_features = map_features.view(map_features.size(0), -1)
+        # Flatten RNN output for linear layer
+        rnn_output_flattened = rnn_output.contiguous().view(rnn_output.size(0), -1)
 
-        # print("Map Features Shape:", map_features.shape)  # Debugging statement
+        # Final processing with linear layer
+        features = self.fc(rnn_output_flattened)
 
-        # Process the sinusoidally encoded positions
-        pos_features = self.pos_extractor(pos_obs)
-
-        # print("Position Features Shape:", pos_features.shape)  # Debugging statement
-
-        # Combine and process through the fully connected layer
-        combined = torch.cat((map_features, pos_features), dim=1)
-        return self.combined_fc(combined)
+        return features
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -101,9 +94,9 @@ if __name__ == '__main__':
 
     num_cpu = 120  # Also sets the number of episodes per training iteration
 
-    if 0 < num_cpu < 31:
-        env_config['headless'] = False
-        use_wandb_logging = False
+    #if 0 < num_cpu < 31:
+    #    env_config['headless'] = False
+    #    use_wandb_logging = False
 
     print(env_config)
 
