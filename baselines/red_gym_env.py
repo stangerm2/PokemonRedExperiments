@@ -58,7 +58,7 @@ class RedGymEnv(Env):
         self.battle_started = False
         self.sin_freqs = 8
         self.obs_memory_size = 10
-        self.pos_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)  # x,y * freq=8
+        self.pos_memory = np.zeros((self.obs_memory_size * 3,), dtype=np.uint8)  # x,y * freq=8
         self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
@@ -153,9 +153,7 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "pos_x": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8),
-                "pos_y": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8),
-                "map": spaces.Box(low=0, high=255, shape=(self.obs_memory_size,), dtype=np.uint8)
+                "pos": spaces.MultiDiscrete([256] * self.obs_memory_size * 3,)
             }
         )
 
@@ -221,7 +219,7 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.pos_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_memory = np.zeros((self.obs_memory_size * 3,), dtype=np.uint8)
         self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
@@ -293,9 +291,7 @@ class RedGymEnv(Env):
         self.update_coord_obs() # pos + map
 
         observation = {
-            "pos_x": self.pos_x,
-            "pos_y": self.pos_y,
-            "map": self.map_memory
+            "pos": self.pos_memory
         }
 
         return observation
@@ -329,9 +325,9 @@ class RedGymEnv(Env):
         # Calculate the starting index in self.obs_memory for the new data
         start_pos = self.step_count % self.obs_memory_size
 
-        self.pos_x[start_pos] = new_x_pos
-        self.pos_y[start_pos] = new_y_pos
-        self.map_memory[start_pos] = new_map_n
+        self.pos_memory[start_pos] = new_x_pos
+        self.pos_memory[start_pos + 1] = new_y_pos
+        self.pos_memory[start_pos + 2] = new_map_n
 
 
 

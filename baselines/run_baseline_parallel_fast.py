@@ -92,11 +92,11 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 120  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
-    #if 0 < num_cpu < 31:
-    #    env_config['headless'] = False
-    #    use_wandb_logging = False
+    if 0 < num_cpu < 31:
+        env_config['headless'] = False
+        use_wandb_logging = False
 
     print(env_config)
 
@@ -137,7 +137,8 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MultiInputPolicy", env, policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
+        # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
+        model = PPO("MultiInputPolicy", env,
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=0, device="auto", tensorboard_log=sess_path)
 
