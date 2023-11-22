@@ -325,9 +325,9 @@ class RedGymEnv(Env):
         # Calculate the starting index in self.obs_memory for the new data
         start_pos = self.step_count % self.obs_memory_size
 
-        self.pos_memory[start_pos] = new_x_pos
-        self.pos_memory[start_pos + 1] = new_y_pos
-        self.pos_memory[start_pos + 2] = new_map_n
+        self.pos_memory[start_pos] = np.sin(2 * np.pi * new_x_pos / 255)
+        self.pos_memory[start_pos + 1] = np.sin(2 * np.pi * new_y_pos / 255)
+        self.pos_memory[start_pos + 2] = new_map_n / 256.0
 
 
 
