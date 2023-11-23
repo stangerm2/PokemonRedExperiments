@@ -58,9 +58,7 @@ class RedGymEnv(Env):
         self.battle_started = False
         self.sin_freqs = 8
         self.obs_memory_size = 10
-        self.pos_memory = np.zeros((self.obs_memory_size * 3,), dtype=np.uint8)  # x,y * freq=8
-        self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
-        self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
@@ -153,7 +151,7 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "pos": spaces.MultiDiscrete([256] * self.obs_memory_size * 3,)
+                "pos": spaces.Box(low=-1, high=1, shape=(self.obs_memory_size * 17,), dtype=np.float32),
             }
         )
 
@@ -219,9 +217,7 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.pos_memory = np.zeros((self.obs_memory_size * 3,), dtype=np.uint8)
-        self.pos_x = np.zeros((self.obs_memory_size,), dtype=np.uint8)
-        self.pos_y = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)
         self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
         self.steps_discovered = 0
 
@@ -272,11 +268,6 @@ class RedGymEnv(Env):
 
         obs = self._get_obs()
 
-        #pos = self.step_count % self.obs_memory_size
-        #self.obs_memory[pos] = new_map_n
-        #self.obs_memory[pos + 1] = sin_pos[0]
-        #self.obs_memory[pos + 2] = sin_pos[1]
-
         # self.save_screenshot(self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
         self.save_and_print_info(step_limit_reached)
@@ -291,7 +282,7 @@ class RedGymEnv(Env):
         self.update_coord_obs() # pos + map
 
         observation = {
-            "pos": self.pos_memory
+            "pos": self.pos_memory,
         }
 
         return observation
@@ -323,11 +314,12 @@ class RedGymEnv(Env):
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
         # Calculate the starting index in self.obs_memory for the new data
-        start_pos = self.step_count % self.obs_memory_size
+        pos_index = (self.step_count % self.obs_memory_size)
+        pos_offset = pos_index * 17
 
-        self.pos_memory[start_pos] = np.sin(2 * np.pi * new_x_pos / 255)
-        self.pos_memory[start_pos + 1] = np.cos(2 * np.pi * new_y_pos / 255)
-        self.pos_memory[start_pos + 2] = new_map_n / 256.0
+        self.pos_memory[pos_offset: pos_offset + 8] = np.sin(new_x_pos * 2 ** np.arange(8))
+        self.pos_memory[pos_offset + 8: pos_offset + 16] = np.sin(new_y_pos * 2 ** np.arange(8))
+        self.pos_memory[pos_offset + 16] = new_map_n / 256.0
 
 
 
