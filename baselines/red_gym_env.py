@@ -57,9 +57,10 @@ class RedGymEnv(Env):
         self.interaction_started = False
         self.battle_started = False
         self.sin_freqs = 8
-        self.obs_memory_size = 10
-        self.pos_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)
-        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_elem_size = 3
+        self.obs_memory_size = 7
+        self.pos_memory = np.zeros((self.obs_memory_size * self.pos_elem_size,), dtype=np.uint8)  # x,y * freq=8
+        self.pos = np.zeros((1,), dtype=np.uint8)
         self.steps_discovered = 0
 
         # Set this in SOME subclasses
@@ -151,7 +152,8 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "pos": spaces.Box(low=-1, high=1, shape=(self.obs_memory_size * 17,), dtype=np.float32),
+                "pos": spaces.MultiDiscrete([256] * self.pos_elem_size, ),
+                "pos_memory": spaces.MultiDiscrete([256] * self.obs_memory_size * self.pos_elem_size, )
             }
         )
 
@@ -217,8 +219,8 @@ class RedGymEnv(Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         self.interaction_started = False
-        self.pos_memory = np.zeros((self.obs_memory_size * 17,), dtype=np.float32)
-        self.map_memory = np.zeros((self.obs_memory_size,), dtype=np.uint8)
+        self.pos_memory = np.zeros((self.obs_memory_size * self.pos_elem_size,), dtype=np.uint8)
+        self.pos = np.zeros((1,), dtype=np.uint8)
         self.steps_discovered = 0
 
         return self._get_obs(), {}
@@ -257,11 +259,6 @@ class RedGymEnv(Env):
         x_pos, y_pos, map_n = self.get_current_location()
         # print(f'id: {id(self)}, new location: {self.get_location_str(x_pos, y_pos, map_n)}')
 
-        # while not self.npcs_are_still():
-        #    print(f'******* Movement Waiting')
-        #    #self.pyboy.tick()
-        #    time.sleep(1/1000)
-
         new_reward = self.update_reward(action)
 
         step_limit_reached = self.check_if_done()
@@ -282,45 +279,22 @@ class RedGymEnv(Env):
         self.update_coord_obs() # pos + map
 
         observation = {
-            "pos": self.pos_memory,
+            "pos": self.pos,
+            "pos_memory": self.pos_memory
         }
 
         return observation
 
 
+
     def update_coord_obs(self):
-        """
-        Converts coordinates into a sinusoidal (fourier) embedding
-        new_x_pos, new_y_pos: The x and y coordinates to encode
-        freqs: number of frequencies/octaves to encode coordinates into
-        returns: array of encoded coordinates [1,freqs*2]
-        """
-        '''
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
-        torch_pos = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
-
-        sin_pos = torch.hstack([
-            torch.outer(torch_pos[:, 0], 2 ** torch.arange(self.sin_freqs, device="cpu")).sin(),
-            torch.outer(torch_pos[:, 1], 2 ** torch.arange(self.sin_freqs, device="cpu")).sin()
-        ])
-
-        # Update the map number and sinusoidal encoded positions
-        if sin_pos.is_cuda:
-            sin_pos = sin_pos.cpu().numpy()
-        else:
-            sin_pos = sin_pos.numpy()
-        '''
-        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
-
+        self.pos = np.array([new_x_pos, new_y_pos, new_map_n])
         # Calculate the starting index in self.obs_memory for the new data
-        pos_index = (self.step_count % self.obs_memory_size)
-        pos_offset = pos_index * 17
 
-        self.pos_memory[pos_offset: pos_offset + 8] = np.sin(new_x_pos * 2 ** np.arange(8))
-        self.pos_memory[pos_offset + 8: pos_offset + 16] = np.sin(new_y_pos * 2 ** np.arange(8))
-        self.pos_memory[pos_offset + 16] = new_map_n / 256.0
-
+        self.pos_memory = np.roll(self.pos_memory, self.pos_elem_size)
+        self.pos_memory[0: 0 + self.pos_elem_size] = self.pos
 
 
     def init_knn(self):
