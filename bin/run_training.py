@@ -1,3 +1,4 @@
+import os
 from os.path import exists
 from pathlib import Path
 import uuid
@@ -81,7 +82,7 @@ if __name__ == '__main__':
     use_wandb_logging = True
     ep_length = 2048 * 1
     sess_id = str(uuid.uuid4())[:8]
-    sess_path = Path(f'session_{sess_id}')
+    sess_path = Path(f'../saved_runs/session_{sess_id}')
 
     env_config = {
         'headless': True, 'save_final_state': True, 'early_stop': False,
@@ -102,10 +103,10 @@ if __name__ == '__main__':
 
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
-    checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
+    checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
 
-    callbacks = [checkpoint_callback]
+    callbacks = [checkpoint_callback, TensorboardCallback()]
 
     if use_wandb_logging:
         import wandb
@@ -118,6 +119,7 @@ if __name__ == '__main__':
             sync_tensorboard=True,
             monitor_gym=True,
             save_code=True,
+            dir=sess_path,
         )
         callbacks.append(WandbCallback())
 
@@ -140,11 +142,11 @@ if __name__ == '__main__':
         # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
         model = PPO("MultiInputPolicy", env,
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
-                    seed=0, device="auto")
+                    seed=0, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)
 
-    model.learn(total_timesteps=(ep_length) * num_cpu * 1000, callback=CallbackList(callbacks))
+    model.learn(total_timesteps=ep_length * num_cpu * 1000, callback=CallbackList(callbacks))
 
     if use_wandb_logging:
         run.finish()
