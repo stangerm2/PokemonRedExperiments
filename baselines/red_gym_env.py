@@ -23,6 +23,24 @@ import torch
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
+
+# Player addresses
+PLAYER_LOCATION_X = 0xD362
+PLAYER_LOCATION_Y = 0xD361
+PLAYER_MAP = 0xD35E
+PLAYER_ANIM_FRAME_COUNTER = 0xC108
+PLAYER_FACING_DIR = 0xC109
+PLAYER_COLLISION = 0xC10C # Running into NPC, doesn't count map boundary collisions
+PLAYER_IN_GRASS = 0xC207 # 0x80 in poke grass, else 00
+
+# Player's surroundings (tiles above, below, left and right of player sprite)[N/A when in chat/menu screen]
+TILE_ABOVE_PLAYER = 0xC434
+TILE_BELOW_PLAYER = 0xC484
+TILE_LEFT_OF_PLAYER = 0xC45A
+TILE_RIGHT_OF_PLAYER = 0xC45E
+TILE_CURRENT_AND_FRONT_BUMP_PLAYER = 0xCFC6 # Tile ID of player until sprite bump obstacle, then it's obstacle tile ID
+
+
 class RedGymEnv(Env):
 
     def __init__(
@@ -58,9 +76,9 @@ class RedGymEnv(Env):
         self.battle_started = False
         self.sin_freqs = 8
         self.pos_elem_size = 3
-        self.obs_memory_size = 7
+        self.obs_memory_size = 2
         self.pos_memory = np.zeros((self.obs_memory_size * self.pos_elem_size,), dtype=np.uint8)  # x,y * freq=8
-        self.pos = np.zeros((1,), dtype=np.uint8)
+        self.pos = np.zeros((self.pos_elem_size + 6,), dtype=np.uint8)
         self.steps_discovered = 0
 
         # Set this in SOME subclasses
@@ -152,7 +170,7 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "pos": spaces.MultiDiscrete([256] * self.pos_elem_size, ),
+                "pos": spaces.MultiDiscrete([256] * (self.pos_elem_size + 6), ),
                 "pos_memory": spaces.MultiDiscrete([256] * self.obs_memory_size * self.pos_elem_size, )
             }
         )
@@ -220,7 +238,7 @@ class RedGymEnv(Env):
         self.reset_count += 1
         self.interaction_started = False
         self.pos_memory = np.zeros((self.obs_memory_size * self.pos_elem_size,), dtype=np.uint8)
-        self.pos = np.zeros((1,), dtype=np.uint8)
+        self.pos = np.zeros((self.pos_elem_size + 6,), dtype=np.uint8)
         self.steps_discovered = 0
 
         return self._get_obs(), {}
@@ -288,13 +306,19 @@ class RedGymEnv(Env):
 
 
     def update_coord_obs(self):
-        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
+        facing_dir = self.pyboy.get_memory_value(PLAYER_FACING_DIR)
+        tile_above = self.pyboy.get_memory_value(TILE_ABOVE_PLAYER)
+        tile_below = self.pyboy.get_memory_value(TILE_BELOW_PLAYER)
+        tile_left = self.pyboy.get_memory_value(TILE_LEFT_OF_PLAYER)
+        tile_right = self.pyboy.get_memory_value(TILE_RIGHT_OF_PLAYER)
+        tile_bump = self.pyboy.get_memory_value(TILE_CURRENT_AND_FRONT_BUMP_PLAYER)
 
-        self.pos = np.array([new_x_pos, new_y_pos, new_map_n])
-        # Calculate the starting index in self.obs_memory for the new data
+        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
+        self.pos = np.array([new_x_pos, new_y_pos, new_map_n, facing_dir, tile_above,
+                                 tile_below, tile_left, tile_right, tile_bump])
 
         self.pos_memory = np.roll(self.pos_memory, self.pos_elem_size)
-        self.pos_memory[0: 0 + self.pos_elem_size] = self.pos
+        self.pos_memory[:self.pos_elem_size] = self.pos[:self.pos_elem_size]
 
 
     def init_knn(self):
