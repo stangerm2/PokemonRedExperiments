@@ -54,18 +54,17 @@ class RedGymEnv(Env):
 
         self.reset()
 
-        assert len(initialize_observation_space()) == len(self._get_obs())
+        assert len(initialize_observation_space()) == len(self._get_observation())
 
     def reset(self, seed=None):
         self.seed = seed
         self.game.reload_game()
         self._reset_env_state()
 
-        return self._get_obs(), {}
+        return self._get_observation(), {}
 
     def _reset_env_state(self):
         self.step_count = 0
-        self.progress_reward = {}
         self.total_reward = 0
         self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
         self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
@@ -78,32 +77,30 @@ class RedGymEnv(Env):
         self.agent_stats = []
 
     def step(self, action):
-        x_pos_cur, y_pos_cur, n_map_cur = self.support.get_and_save_pos()
+        self._update_pre_action_memory()
         self.game.run_action_on_emulator(action)
+        self._update_post_action_memory()
+
+        self._update_rewards(action)
         self._append_agent_stats(action)
 
-        self.support.update_movement(x_pos_cur, y_pos_cur, n_map_cur)
+        observation = self._get_observation()
 
-        new_reward = self.support.update_reward(action)
-        step_limit_reached = self.support.check_if_done()
-
-        obs = self._get_obs()
-
+        step_limit_reached = self.get_check_if_done()
         self.support.save_and_print_info(step_limit_reached)
 
         self.step_count += 1
-        return obs, new_reward * 0.1, False, step_limit_reached, {}
+
+        return observation, self.total_reward * 0.1, False, step_limit_reached, {}
+
+    def _update_pre_action_memory(self):
+        x_pos_cur, y_pos_cur, n_map_cur = self.support.get_and_save_pos()
+
+    def _update_post_action_memory(self):
+        self.support.update_movement(x_pos_cur, y_pos_cur, n_map_cur)
 
     def get_check_if_done(self):
         return self.support.check_if_done()
-
-    def _get_obs(self):
-        self.support.update_coord_obs()
-        observation = {
-            "pos": self.pos,
-            "pos_memory": self.pos_memory
-        }
-        return observation
 
     def _append_agent_stats(self, action):
         self.agent_stats.append({
@@ -111,3 +108,18 @@ class RedGymEnv(Env):
             'last_action': action,
             'discovered': self.steps_discovered
         })
+
+    def _get_observation(self):
+        self.support.update_coord_obs()
+        observation = {
+            "pos": self.pos,
+            "pos_memory": self.pos_memory
+        }
+        return observation
+
+    def _update_rewards(self, action):
+        state_scores = {
+            'movement': self.reward_scale * self._get_movement_reward(),
+        }
+
+        self.total_reward = sum(val for _, val in state_scores.items())

@@ -3,7 +3,6 @@ import threading
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import math
 from pathlib import Path
 import numpy as np
 from red_env_constants import *
@@ -67,13 +66,6 @@ class RedGymEnvSupport:
 
         return x_pos, y_pos, map_n
 
-    def update_reward(self, action):
-        self.env.progress_reward = self._get_game_state_reward()
-        new_total = sum(val for _, val in self.env.progress_reward.items())
-        new_step = new_total - self.env.total_reward
-        self.env.total_reward = new_total
-        return new_total
-
     def check_if_done(self):
         return self.env.step_count >= self.env.max_steps
 
@@ -129,27 +121,4 @@ class RedGymEnvSupport:
         pd.DataFrame(self.env.agent_stats).to_csv(
             self.env.s_path / Path(f'agent_stats_{self.env.instance_id}.csv.gz'), compression='gzip', mode='a')
 
-    def _get_movement_reward(self):
-        reward = 0
-        bonus = math.log10(len(self.env.visited_pos)) if len(self.env.visited_pos) > 0 else 0
-        bonus += math.log10(2049 - self.env.step_count) if (2048 - self.env.step_count) > 0 and len(
-            self.env.visited_pos) >= MAX_STEP_MEMORY - 1 else 0
 
-        x_pos, y_pos, map_n = self.get_current_location()
-        if self.env.game.get_memory_value(0xD35E) == 12:
-            reward = -.5
-        elif not self.env.moved_location:
-            reward = 0
-        elif (x_pos, y_pos, map_n) in self.env.visited_pos:
-            reward = 1
-        else:
-            reward = 1 + bonus
-            self.env.steps_discovered += 1
-
-        return reward
-
-    def _get_game_state_reward(self, print_stats=False):
-        state_scores = {
-            'movement': self.env.reward_scale * self._get_movement_reward(),
-        }
-        return state_scores
