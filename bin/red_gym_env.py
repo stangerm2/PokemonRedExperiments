@@ -1,8 +1,6 @@
 import uuid
 from pathlib import Path
-from collections import deque
 
-import numpy as np
 from gymnasium import Env, spaces
 
 from red_gym_env_support import RedGymEnvSupport
@@ -10,11 +8,15 @@ from red_pyboy_manager import PyBoyManager
 from red_gym_screen import RedGymScreen
 from red_env_constants import *
 
+from red_gym_map import *
+
+
 def initialize_observation_space():
     return spaces.Dict(
         {
             "pos": spaces.MultiDiscrete([BYTE_SIZE] * POS_BYTES),
-            "pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * POS_BYTES)        }
+            "pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * POS_BYTES)
+        }
     )
 
 
@@ -39,14 +41,11 @@ class RedGymEnv(Env):
         self.output_full = config.get('output_full', OUTPUT_FULL)
         self.rom_location = config.get('gb_path', '../PokemonRed.gb')
 
-        self.support = RedGymEnvSupport(self)
         self.screen = RedGymScreen(self)
         self.game = PyBoyManager(self)
 
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
-        self.all_runs = []
-        self.agent_stats = []
 
         # Stable Baselines3 env config
         self.action_space = spaces.Discrete(len(self.game.valid_actions))
@@ -58,28 +57,29 @@ class RedGymEnv(Env):
 
     def reset(self, seed=None):
         self.seed = seed
-        self.game.reload_game()
         self._reset_env_state()
 
         return self._get_observation(), {}
 
     def _reset_env_state(self):
+        self.support = RedGymEnvSupport(self)
+
+        self.game.reload_game()
+
         self.step_count = 0
         self.total_reward = 0
-        self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
-        self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
-        self.steps_discovered = 0
-        self.visited_pos = {}
-        self.visited_pos_order = deque()
-        self.new_map = False
-        self.moved_location = False
         self.reset_count += 1
         self.agent_stats = []
 
     def step(self, action):
-        self._update_pre_action_memory()
+        print()
+        print()
+        print()
+        print(f'action: {action}')
+
+        self._run_pre_action_steps()
         self.game.run_action_on_emulator(action)
-        self._update_post_action_memory()
+        self._run_post_action_steps()
 
         self._update_rewards(action)
         self._append_agent_stats(action)
@@ -93,11 +93,11 @@ class RedGymEnv(Env):
 
         return observation, self.total_reward * 0.1, False, step_limit_reached, {}
 
-    def _update_pre_action_memory(self):
-        x_pos_cur, y_pos_cur, n_map_cur = self.support.get_and_save_pos()
+    def _run_pre_action_steps(self):
+        self.support.map.save_pre_action_pos()
 
-    def _update_post_action_memory(self):
-        self.support.update_movement(x_pos_cur, y_pos_cur, n_map_cur)
+    def _run_post_action_steps(self):
+        self.support.map.save_post_action_pos()
 
     def get_check_if_done(self):
         return self.support.check_if_done()
@@ -105,21 +105,23 @@ class RedGymEnv(Env):
     def _append_agent_stats(self, action):
         self.agent_stats.append({
             'reward': self.total_reward,
-            'last_action': action,
-            'discovered': self.steps_discovered
+            # 'last_action': action,
+            'discovered': self.support.map.steps_discovered
         })
 
     def _get_observation(self):
-        self.support.update_coord_obs()
+        self.support.map.update_pos_obs()
+
         observation = {
-            "pos": self.pos,
-            "pos_memory": self.pos_memory
+            "pos": self.support.map.pos,
+            "pos_memory": self.support.map.pos_memory
         }
         return observation
 
     def _update_rewards(self, action):
         state_scores = {
-            'movement': self.reward_scale * self._get_movement_reward(),
+            'pallet_town_explorer': self.reward_scale * self.support.map.pallet_town_explorer_reward(),
         }
 
+        # TODO: If pass in some test flag run just a single test reward
         self.total_reward = sum(val for _, val in state_scores.items())

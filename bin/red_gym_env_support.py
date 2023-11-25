@@ -4,37 +4,17 @@ import threading
 import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
-import numpy as np
-from red_env_constants import *
+from red_gym_map import RedGymMap
 
 
 
 class RedGymEnvSupport:
     def __init__(self, env):
         self.env = env
-
-
-    def update_coord_obs(self):
-        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
-        self.env.pos = np.array([new_x_pos, new_y_pos, new_map_n])
-
-        self.env.pos_memory = np.roll(self.env.pos_memory, POS_BYTES)
-        self.env.pos_memory[:POS_BYTES] = self.env.pos[:POS_BYTES]
-
-    def update_movement(self, x_pos_cur, y_pos_cur, n_map_cur):
-        x_pos_new, y_pos_new, n_map_new = self.get_current_location()
-        self.env.moved_location = not (x_pos_cur == x_pos_new and y_pos_cur == y_pos_new and n_map_cur == n_map_new)
-
-        if self.env.moved_location:
-            if self.env.new_map:
-                self.env.new_map = False
-            elif n_map_new == n_map_cur:
-                pass  # Additional logic if needed
-            else:
-                self.env.new_map = True
+        self.map = RedGymMap(self.env)
 
     def save_screenshot(self, image=None):
-        x_pos, y_pos, map_n = self.get_current_location()
+        x_pos, y_pos, map_n = self.map.get_current_location()
 
         if image is None:
             image = self.env.screen.render(reduce_res=False)
@@ -44,27 +24,6 @@ class RedGymEnvSupport:
         plt.imsave(
             ss_dir / Path(f'{threading.get_ident()}_{self.env.step_count}.jpeg'),
             image)
-
-    def get_current_location(self):
-        x_pos = self.env.game.get_memory_value(0xD362)
-        y_pos = self.env.game.get_memory_value(0xD361)
-        map_n = self.env.game.get_memory_value(0xD35E)
-        return x_pos, y_pos, map_n
-
-    def get_and_save_pos(self):
-        x_pos, y_pos, map_n = self.get_current_location()
-
-        if len(self.env.visited_pos_order) > MAX_STEP_MEMORY:
-            del_key = self.env.visited_pos_order.popleft()
-            del self.env.visited_pos[del_key]
-
-        if (x_pos, y_pos, map_n) in self.env.visited_pos:
-            return x_pos, y_pos, map_n
-
-        self.env.visited_pos[(x_pos, y_pos, map_n)] = self.env.step_count
-        self.env.visited_pos_order.append((x_pos, y_pos, map_n))
-
-        return x_pos, y_pos, map_n
 
     def check_if_done(self):
         return self.env.step_count >= self.env.max_steps
@@ -94,11 +53,10 @@ class RedGymEnvSupport:
 
     def _construct_progress_string(self):
         prog_string = f'step: {self.env.step_count:6d}'
-        for key, val in self.env.progress_reward.items():
+        for key, val in self.env.agent_stats[-1].items():
             prog_string += f' {key}: {val:5.2f}'
         prog_string += f' sum: {self.env.total_reward:5.2f}'
-        prog_string += f' reward: {self.env.total_reward:5.2f}, seen_cord_len: {len(self.env.visited_pos)}'
-        prog_string += f' steps_discovered: {self.env.steps_discovered}'
+        prog_string += f' reward: {self.env.total_reward:5.2f}'
         return prog_string
 
     def _print_final_rewards(self):
@@ -115,9 +73,6 @@ class RedGymEnvSupport:
                 self.env.screen.render(reduce_res=False))
 
     def _save_run_data(self):
-        self.env.all_runs.append(self.env.progress_reward)
-        with open(self.env.s_path / Path(f'all_runs_{self.env.instance_id}.json'), 'w') as f:
-            json.dump(self.env.all_runs, f)
         pd.DataFrame(self.env.agent_stats).to_csv(
             self.env.s_path / Path(f'agent_stats_{self.env.instance_id}.csv.gz'), compression='gzip', mode='a')
 
