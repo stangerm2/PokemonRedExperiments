@@ -21,8 +21,10 @@ def initialize_observation_space():
 
 
 class RedGymEnv(Env):
-    def __init__(self, config=None):
+    def __init__(self, thread_id, config=None):
         self.debug = config.get('debug', False)
+        if self.debug:
+            print('**** RedGymEnv ****')
         self.s_path = Path(config['session_path'])
         self.save_final_state = config.get('save_final_state', False)
         self.print_rewards = config.get('print_rewards', False)
@@ -40,6 +42,7 @@ class RedGymEnv(Env):
         self.output_shape = config.get('output_shape', OUTPUT_SHAPE)
         self.output_full = config.get('output_full', OUTPUT_FULL)
         self.rom_location = config.get('gb_path', '../PokemonRed.gb')
+        self.thread_id = thread_id
 
         self.screen = RedGymScreen(self)
         self.game = PyBoyManager(self)
@@ -51,9 +54,7 @@ class RedGymEnv(Env):
         self.action_space = spaces.Discrete(len(self.game.valid_actions))
         self.observation_space = initialize_observation_space()
 
-        self.reset()
-
-        assert len(initialize_observation_space()) == len(self._get_observation())
+        # assert len(initialize_observation_space()) == len(self._get_observation())
 
     def reset(self, seed=None):
         self.seed = seed
@@ -72,13 +73,8 @@ class RedGymEnv(Env):
         self.agent_stats = []
 
     def step(self, action):
-        print()
-        print()
-        print()
-        print(f'action: {action}')
-
         self._run_pre_action_steps()
-        self.game.run_action_on_emulator(action)
+        self.game.run_action_on_emulator(self.game.valid_actions[action])
         self._run_post_action_steps()
 
         self._update_rewards(action)

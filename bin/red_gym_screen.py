@@ -5,6 +5,9 @@ import mediapy as media
 
 class RedGymScreen:
     def __init__(self, env):
+        if env.debug:
+            print('**** RedGymScreen ****')
+
         self.env = env
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
@@ -29,7 +32,6 @@ class RedGymScreen:
         return game_screen
 
     def prepare_video_recording_if_enabled(self):
-        print(self.env.save_video)
         if self.env.save_video:
             base_dir = self.env.save_path / 'rollouts'
             base_dir.mkdir(exist_ok=True)

@@ -44,6 +44,9 @@ def pyboy_term_actions(action):
 
 class PyBoyManager:
     def __init__(self, env):
+        if env.debug:
+            print('**** PyBoyManager ****')
+
         self.env = env
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
@@ -73,29 +76,66 @@ class PyBoyManager:
             with open(save_file, "rb") as f:
                 self.pyboy.load_state(f)
 
-    def run_action_on_emulator(self, action):
-        self.pyboy.send_input(self.valid_actions[action])
-        if not self.env.save_video and self.env.headless:
-            self.pyboy._rendering(False)
-
-        for i in range(self.env.act_freq):
-            if i == 8:
-                termination_action = pyboy_term_actions(action)
-                self.pyboy.send_input(termination_action)
-
-            if self.env.save_video and not self.env.fast_video:
-                self.env.screen.add_video_frame()
-
-            if i == self.env.act_freq - 1:
-                self.pyboy._rendering(True)
-
-            self.pyboy.tick()
-
-        if self.env.save_video and self.env.fast_video:
-            self.env.screen.add_video_frame()
-
     def get_memory_value(self, addr):
         return self.pyboy.get_memory_value(addr)
 
     def _read_bit(self, addr, bit: int) -> bool:
         return bin(256 + self.get_memory_value(addr))[-bit - 1] == '1'
+
+    def run_dpad_cmd(self, action, termination_action):
+        if not self.env.save_video and self.env.headless:
+            self.pyboy._rendering(False)
+
+        # press button then release after some steps
+        self.pyboy.send_input(action)
+
+        frames = 23
+
+        # AI sent a dpad cmd during a chat interaction, which is allowed but just unproductive. Don't burn more
+        # resources than needed to run the cmd.
+        # TODO: Magic num fix when adding RAM constants commit
+        if self.get_memory_value(0x8800) != 0:
+            frames = 23  # TODO: Need button_cmd handling before lowering this
+
+        # Frames for animation vary, xy move ~22, wall collision ~13 & zone reload ~66. Wasted frames are wasted
+        # training cycles, frames/tick is expensive. Also, try to prefect OBS output image with completed frame cycle.
+        count, animation_started = 0, False
+        for i in range(frames):
+            count += 1
+            self.pyboy.tick()
+
+            # TODO: Magic num fix when adding RAM constants commit
+            moving_animation = self.get_memory_value(0xC108)
+
+            if animation_started and moving_animation == 0:
+                break
+
+            # Release the key once the animation starts, thus it should only be possible to advance 1 position.
+            if moving_animation > 0:
+                animation_started = True
+                self.pyboy.send_input(termination_action)
+
+        if self.env.debug:
+            print(f'dpad wait frames: {count}')
+
+        # We never saw movement anim so we never sent term, send it now
+        if not animation_started:
+            self.pyboy.send_input(termination_action)
+
+        self.pyboy._rendering(True)
+        self.pyboy.tick()
+
+        #if not (termination_action == WindowEvent.RELEASE_BUTTON_B or termination_action == WindowEvent.RELEASE_BUTTON_A):
+        #    self.env.support.save_screenshot()
+
+    def run_action_on_emulator(self, action):
+        termination_action = pyboy_term_actions(action)
+
+        if self.env.debug:
+            print(f'\naction: {WindowEvent(action).__str__()}')
+
+        if termination_action == WindowEvent.PASS:
+            print(f'ignoring command')
+            return
+
+        self.run_dpad_cmd(action, termination_action)

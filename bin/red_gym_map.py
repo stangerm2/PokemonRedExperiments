@@ -8,16 +8,19 @@ from red_env_constants import POS_HISTORY_SIZE, POS_BYTES, MAX_STEP_MEMORY, MAP_
 
 class RedGymMap:
     def __init__(self, env):
-        self.env = env
+        if env.debug:
+            print('**** RedGymMap ****')
 
+        self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
         self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
         self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
         self.steps_discovered = 0
         self.visited_pos = {}
         self.visited_pos_order = deque()
-        self.new_map = False
+        self.new_map = 0
         self.moved_location = False
+        self.location_history = deque()
 
     def pallet_town_explorer_reward(self):
         reward, bonus = 0, self._calculate_exploration_bonus()
@@ -45,19 +48,13 @@ class RedGymMap:
         return bonus
 
     def update_pos_obs(self):
-        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
-        self.pos = np.array([new_x_pos, new_y_pos, new_map_n])
+        x_pos_new, y_pos_new, n_map_new = self.get_current_location()
+        self.pos = np.array([x_pos_new, y_pos_new, n_map_new])
 
         self.pos_memory = np.roll(self.pos_memory, POS_BYTES)
         self.pos_memory[:POS_BYTES] = self.pos[:POS_BYTES]
 
-        print(f"Moved: {self.moved_location}")
-        print(f"Start location: {self.x_pos_org, self.y_pos_org, self.n_map_org}")
-        print(f"New location: {new_x_pos, new_y_pos, new_map_n}")
-        print()
-        print(self.pos)
-        print()
-        print(self.pos_memory)
+        self.print_map_debug_info()
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
@@ -66,7 +63,25 @@ class RedGymMap:
                                    self.n_map_org == n_map_new)
 
         if self.moved_location:
-            self.new_map = n_map_new != self.n_map_org
+            # Bug check: AI is only allowed to move 0 or 1 spots per turn, new maps change x,y ref pos so don't count.
+            # When the game goes to a new map, it changes m first, then y,x will update on the next turn
+            if self.new_map:
+                self.x_pos_org, self.y_pos_org, self.n_map_org = self.get_current_location()
+                self.new_map = False
+            elif n_map_new == self.n_map_org:
+                if not (abs(self.x_pos_org - x_pos_new) + abs(self.y_pos_org - y_pos_new) <= 1):
+                    self.print_map_debug_info()
+
+                    print()
+                    print()
+                    print()
+                    print(self.env.instance_id)
+
+                    while len(self.location_history):
+                        print(self.location_history.popleft())
+                    assert False
+            else:
+                self.new_map = True
 
     def get_current_location(self):
         x_pos = self.env.game.get_memory_value(0xD362)
@@ -86,4 +101,24 @@ class RedGymMap:
         if current_pos not in self.visited_pos:
             self.visited_pos[current_pos] = self.env.step_count
             self.visited_pos_order.append(current_pos)
+
+    def print_map_debug_info(self):
+        new_x_pos, new_y_pos, new_map_n = self.get_current_location()
+
+        debug_str = f"\nMoved: {self.moved_location} \n"
+        if self.new_map:
+            debug_str = f"\nNew Map!\n"
+        debug_str += f"Start location: {self.x_pos_org, self.y_pos_org, self.n_map_org} \n"
+        debug_str += f"New location: {new_x_pos, new_y_pos, new_map_n} \n"
+        debug_str += f"\n"
+        debug_str += f"{self.pos}"
+        debug_str += f"\n"
+        debug_str += f"{self.pos_memory}"
+
+        if len(self.location_history) > 10:
+            self.location_history.popleft()
+        self.location_history.append(debug_str)
+
+        if self.env.debug:
+            print(debug_str)
 

@@ -10,6 +10,9 @@ from red_gym_map import RedGymMap
 
 class RedGymEnvSupport:
     def __init__(self, env):
+        if env.debug:
+            print('**** RedGymEnvSupport ****')
+
         self.env = env
         self.map = RedGymMap(self.env)
 
@@ -19,10 +22,10 @@ class RedGymEnvSupport:
         if image is None:
             image = self.env.screen.render(reduce_res=False)
 
-        ss_dir = self.env.s_path / Path(f'screenshots/{map_n}_{x_pos}_{y_pos}')
+        ss_dir = self.env.s_path / Path(f'screenshots/{self.env.instance_id}')
         ss_dir.mkdir(parents=True, exist_ok=True)
         plt.imsave(
-            ss_dir / Path(f'{threading.get_ident()}_{self.env.step_count}.jpeg'),
+            ss_dir / Path(f'{self.env.step_count}_{map_n}_{x_pos}_{y_pos}.jpeg'),
             image)
 
     def check_if_done(self):
@@ -73,7 +76,9 @@ class RedGymEnvSupport:
                 self.env.screen.render(reduce_res=False))
 
     def _save_run_data(self):
+        stats_path = self.env.s_path / 'agent_stats'
+        stats_path.mkdir(exist_ok=True)
         pd.DataFrame(self.env.agent_stats).to_csv(
-            self.env.s_path / Path(f'agent_stats_{self.env.instance_id}.csv.gz'), compression='gzip', mode='a')
+            stats_path / Path(f'agent_stats_{self.env.instance_id}.csv.gz'), compression='gzip', mode='a')
 
 

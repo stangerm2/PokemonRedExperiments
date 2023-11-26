@@ -4,7 +4,6 @@ from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
 from stable_baselines3 import PPO
-from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
@@ -12,6 +11,7 @@ from tensorboard_callback import TensorboardCallback
 import torch
 import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from red_env_constants import *
 
 # Embedding sizes
 embedding_size_x = 8
@@ -59,19 +59,16 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         return features
 
-def make_env(rank, env_conf, seed=0):
+def make_env(thread_id, env_conf, seed=0):
     """
     Utility function for multiprocessed env.
     :param env_id: (str) the environment ID
     :param num_env: (int) the number of environments you wish to have in subprocesses
-    :param seed: (int) the initial seed for RNG
-    :param rank: (int) index of the subprocess
+    :param id: (int) index of the subprocess
     """
 
     def _init():
-        env = RedGymEnv(env_conf)
-        env.reset(seed=(seed + rank))
-        return env
+        return RedGymEnv(thread_id, env_conf)
 
     set_random_seed(seed)
     return _init
@@ -96,12 +93,14 @@ if __name__ == '__main__':
     num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
+        # env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 
     print(env_config)
 
-    env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
+    # env = DummyVecEnv([lambda: RedGymEnv(config=env_config)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
@@ -142,7 +141,7 @@ if __name__ == '__main__':
         # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
         model = PPO("MultiInputPolicy", env,
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
-                    seed=0, device="auto", tensorboard_log=sess_path)
+                    seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)
 
