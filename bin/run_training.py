@@ -90,10 +90,10 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 120  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
-        # env_config['debug'] = True
+        env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 

@@ -4,7 +4,7 @@ import numpy as np
 from collections import deque
 
 # Assuming these constants are defined in red_env_constants
-from red_env_constants import POS_HISTORY_SIZE, POS_BYTES, MAX_STEP_MEMORY, MAP_VALUE_PALLET_TOWN
+from red_env_constants import *
 
 class RedGymMap:
     def __init__(self, env):
@@ -13,7 +13,7 @@ class RedGymMap:
 
         self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
-        self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
+        self.pos_memory = np.zeros((POS_HISTORY_SIZE * XYM_BYTES,), dtype=np.uint8)
         self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
         self.steps_discovered = 0
         self.visited_pos = {}
@@ -48,13 +48,21 @@ class RedGymMap:
         return bonus
 
     def update_pos_obs(self):
+        facing_dir = self.env.game.get_memory_value(PLAYER_FACING_DIR)
+        tile_above = self.env.game.get_memory_value(TILE_ABOVE_PLAYER)
+        tile_below = self.env.game.get_memory_value(TILE_BELOW_PLAYER)
+        tile_left = self.env.game.get_memory_value(TILE_LEFT_OF_PLAYER)
+        tile_right = self.env.game.get_memory_value(TILE_RIGHT_OF_PLAYER)
+        tile_bump = self.env.game.get_memory_value(TILE_CURRENT_AND_FRONT_BUMP_PLAYER)
+
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
-        self.pos = np.array([x_pos_new, y_pos_new, n_map_new])
+        self.pos = np.array([x_pos_new, y_pos_new, n_map_new, facing_dir, tile_above,
+                            tile_below, tile_left, tile_right, tile_bump])
 
         self.pos_memory = np.roll(self.pos_memory, POS_BYTES)
-        self.pos_memory[:POS_BYTES] = self.pos[:POS_BYTES]
+        self.pos_memory[:XYM_BYTES] = self.pos[:XYM_BYTES]
 
-        self.print_map_debug_info()
+        self.update_map_stats()
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
@@ -70,16 +78,18 @@ class RedGymMap:
                 self.new_map = False
             elif n_map_new == self.n_map_org:
                 if not (abs(self.x_pos_org - x_pos_new) + abs(self.y_pos_org - y_pos_new) <= 1):
-                    self.print_map_debug_info()
+                    self.update_map_stats()
 
                     print()
                     print()
                     print()
                     print(self.env.instance_id)
 
+                    debug_str = None
                     while len(self.location_history):
-                        print(self.location_history.popleft())
-                    assert False
+                        debug_str += self.location_history.popleft()
+                    self.env.support.save_debug_string(debug_str)
+                    # assert False
             else:
                 self.new_map = True
 
@@ -102,10 +112,10 @@ class RedGymMap:
             self.visited_pos[current_pos] = self.env.step_count
             self.visited_pos_order.append(current_pos)
 
-    def print_map_debug_info(self):
+    def update_map_stats(self):
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()
 
-        debug_str = f"\nMoved: {self.moved_location} \n"
+        debug_str = f"Moved: {self.moved_location} \n"
         if self.new_map:
             debug_str = f"\nNew Map!\n"
         debug_str += f"Start location: {self.x_pos_org, self.y_pos_org, self.n_map_org} \n"

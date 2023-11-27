@@ -45,6 +45,17 @@ class RedGymEnvSupport:
         if done:
             self._save_run_data()
 
+    def save_debug_string(self, output_str):
+        debug_path = self.env.s_path / 'debug'
+        debug_path.mkdir(exist_ok=True)
+
+        # Construct the full file path
+        file_path = debug_path / f'debug_{self.env.step_count}.txt'
+
+        # Write the output string to the file
+        with open(file_path, 'w') as file:
+            file.write(output_str)
+
     def _save_current_frame(self):
         plt.imsave(
             self.env.s_path / Path(f'curframe_{self.env.instance_id}.jpeg'),

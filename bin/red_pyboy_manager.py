@@ -94,8 +94,8 @@ class PyBoyManager:
         # AI sent a dpad cmd during a chat interaction, which is allowed but just unproductive. Don't burn more
         # resources than needed to run the cmd.
         # TODO: Magic num fix when adding RAM constants commit
-        if self.get_memory_value(0x8800) != 0:
-            frames = 23  # TODO: Need button_cmd handling before lowering this
+        # if self.get_memory_value(0x8800) != 0:
+        #    frames = 23  # TODO: Need button_cmd handling before lowering this
 
         # Frames for animation vary, xy move ~22, wall collision ~13 & zone reload ~66. Wasted frames are wasted
         # training cycles, frames/tick is expensive. Also, try to prefect OBS output image with completed frame cycle.
@@ -105,7 +105,7 @@ class PyBoyManager:
             self.pyboy.tick()
 
             # TODO: Magic num fix when adding RAM constants commit
-            moving_animation = self.get_memory_value(0xC108)
+            moving_animation = self.get_memory_value(0xC108) != 0 or self.get_memory_value(0xC107) != 0
 
             if animation_started and moving_animation == 0:
                 break
@@ -132,7 +132,7 @@ class PyBoyManager:
         termination_action = pyboy_term_actions(action)
 
         if self.env.debug:
-            print(f'\naction: {WindowEvent(action).__str__()}')
+            print(f'\n\naction: {WindowEvent(action).__str__()}')
 
         if termination_action == WindowEvent.PASS:
             print(f'ignoring command')

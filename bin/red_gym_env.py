@@ -15,7 +15,7 @@ def initialize_observation_space():
     return spaces.Dict(
         {
             "pos": spaces.MultiDiscrete([BYTE_SIZE] * POS_BYTES),
-            "pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * POS_BYTES)
+            "pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * XYM_BYTES)
         }
     )
 
