@@ -103,7 +103,8 @@ class RedGymEnv(Env):
         self.agent_stats.append({
             'reward': self.total_reward,
             # 'last_action': action,
-            'discovered': self.support.map.steps_discovered
+            'discovered': self.support.map.steps_discovered,
+            'p2p_found': self.support.map.tester.p2p_found,
         })
 
     def _get_observation(self):
@@ -119,6 +120,7 @@ class RedGymEnv(Env):
     def _update_rewards(self, action):
         state_scores = {
             'pallet_town_explorer': self.reward_scale * self.support.map.pallet_town_explorer_reward(),
+            'pallet_town_point_nav': self.reward_scale * self.support.map.tester.pallet_town_point_nav(),
         }
 
         # TODO: If pass in some test flag run just a single test reward

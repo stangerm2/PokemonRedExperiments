@@ -6,22 +6,20 @@ from collections import deque
 # Assuming these constants are defined in red_env_constants
 from red_env_constants import *
 
+from red_gym_obs_tester import RedGymObsTester
+
+
+THREE_MOVE_POS = [
+    (0, 0),
+    (0, 1), (0, -1), (1, 0), (-1, 0),
+    (0, 2), (0, -2), (1, 1), (1, -1), (-1, 1), (-1, -1), (2, 0), (-2, 0),
+    (0, 3), (0, -3), (1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (3, 0), (-3, 0)
+]
 
 TWO_MOVE_POS = [
-    (-2, 0),
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, -2),
-    (0, -1),
-    (0, 0),
-    (0, 1),
-    (0, 2),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-    (2, 0)
+    (-2, 0), (-1, -1), (-1, 0), (-1, 1), (0, -2), (0, -1), (0, 0), (0, 1), (0, 2), (1, -1), (1, 0), (1, 1), (2, 0)
 ]
+
 
 class RedGymMap:
     def __init__(self, env):
@@ -30,7 +28,7 @@ class RedGymMap:
 
         self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
-        self.pos_memory = np.zeros((POS_HISTORY_SIZE * XYM_BYTES,), dtype=np.uint8)
+        self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
         self.unseen_positions = np.zeros((NEXT_STEP_VISITED,), dtype=np.uint8)
         self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
         self.steps_discovered = 0
@@ -39,6 +37,8 @@ class RedGymMap:
         self.new_map = 0
         self.moved_location = False
         self.location_history = deque()
+
+        self.tester = RedGymObsTester(self)
 
     def pallet_town_explorer_reward(self):
         reward, bonus = 0, self._calculate_exploration_bonus()
@@ -82,8 +82,8 @@ class RedGymMap:
         self.pos = np.array([x_pos_new, y_pos_new, n_map_new, facing_dir, tile_above,
                             tile_below, tile_left, tile_right, tile_bump])
 
-        self.pos_memory = np.roll(self.pos_memory, POS_BYTES)
-        self.pos_memory[:XYM_BYTES] = self.pos[:XYM_BYTES]
+        # self.pos_memory = np.roll(self.pos_memory, POS_BYTES)
+        # self.pos_memory[:XYM_BYTES] = self.pos[:XYM_BYTES]
 
         self.update_map_stats()
 

@@ -93,7 +93,7 @@ if __name__ == '__main__':
     num_cpu = 120  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
-        env_config['debug'] = True
+        # env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         callbacks.append(WandbCallback())
 
     # put a checkpoint here you want to start from
-    file_name = ''
+    file_name = ''#'../saved_runs/session_24763c7f/poke_10321920_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')
