@@ -6,6 +6,23 @@ from collections import deque
 # Assuming these constants are defined in red_env_constants
 from red_env_constants import *
 
+
+TWO_MOVE_POS = [
+    (-2, 0),
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -2),
+    (0, -1),
+    (0, 0),
+    (0, 1),
+    (0, 2),
+    (1, -1),
+    (1, 0),
+    (1, 1),
+    (2, 0)
+]
+
 class RedGymMap:
     def __init__(self, env):
         if env.debug:
@@ -14,6 +31,7 @@ class RedGymMap:
         self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
         self.pos_memory = np.zeros((POS_HISTORY_SIZE * XYM_BYTES,), dtype=np.uint8)
+        self.unseen_positions = np.zeros((NEXT_STEP_VISITED,), dtype=np.uint8)
         self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
         self.steps_discovered = 0
         self.visited_pos = {}
@@ -47,7 +65,13 @@ class RedGymMap:
 
         return bonus
 
-    def update_pos_obs(self):
+    def update_map_obs(self):
+        x_pos_new, y_pos_new, n_map_new = self.get_current_location()
+
+        self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
+        self._update_unseen_pos_obs(x_pos_new, y_pos_new, n_map_new)
+
+    def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
         facing_dir = self.env.game.get_memory_value(PLAYER_FACING_DIR)
         tile_above = self.env.game.get_memory_value(TILE_ABOVE_PLAYER)
         tile_below = self.env.game.get_memory_value(TILE_BELOW_PLAYER)
@@ -55,7 +79,6 @@ class RedGymMap:
         tile_right = self.env.game.get_memory_value(TILE_RIGHT_OF_PLAYER)
         tile_bump = self.env.game.get_memory_value(TILE_CURRENT_AND_FRONT_BUMP_PLAYER)
 
-        x_pos_new, y_pos_new, n_map_new = self.get_current_location()
         self.pos = np.array([x_pos_new, y_pos_new, n_map_new, facing_dir, tile_above,
                             tile_below, tile_left, tile_right, tile_bump])
 
@@ -63,6 +86,21 @@ class RedGymMap:
         self.pos_memory[:XYM_BYTES] = self.pos[:XYM_BYTES]
 
         self.update_map_stats()
+
+    def _update_unseen_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
+        i = 0
+        for x_offset, y_offset in TWO_MOVE_POS:
+            current_pos = (x_pos_new + x_offset, y_pos_new + y_offset, n_map_new)
+
+            if current_pos in self.visited_pos:
+                self.unseen_positions[i] = True
+            else:
+                self.unseen_positions[i] = False
+
+            i += 1
+
+        if self.env.debug:
+            print(self.unseen_positions)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
@@ -85,7 +123,7 @@ class RedGymMap:
                     print()
                     print(self.env.instance_id)
 
-                    debug_str = None
+                    debug_str = ""
                     while len(self.location_history):
                         debug_str += self.location_history.popleft()
                     self.env.support.save_debug_string(debug_str)

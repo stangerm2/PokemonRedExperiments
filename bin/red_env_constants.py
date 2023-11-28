@@ -18,6 +18,7 @@ POS_HISTORY_SIZE = 14
 POS_BYTES = 9
 XYM_BYTES = 3
 POS_MAP_DETAIL_BYTES = 6
+NEXT_STEP_VISITED = 13  # Num of pos's that are within two moves from cur pos + cur pos
 PYBOY_RUN_SPEED = 6
 MAP_VALUE_PALLET_TOWN = 12
 

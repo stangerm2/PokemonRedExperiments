@@ -54,7 +54,7 @@ class PyBoyManager:
 
     def setup_pyboy(self):
         log_level("ERROR")
-        window_type = 'headless' if self.env.headless else 'SDL2'
+        window_type = 'dummy' if self.env.headless else 'SDL2'
         self.pyboy = PyBoy(
             self.env.rom_location,
             debugging=False,

@@ -15,7 +15,8 @@ def initialize_observation_space():
     return spaces.Dict(
         {
             "pos": spaces.MultiDiscrete([BYTE_SIZE] * POS_BYTES),
-            "pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * XYM_BYTES)
+            #"pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * XYM_BYTES),
+            "unseen_positions": spaces.MultiBinary(NEXT_STEP_VISITED),
         }
     )
 
@@ -106,11 +107,12 @@ class RedGymEnv(Env):
         })
 
     def _get_observation(self):
-        self.support.map.update_pos_obs()
+        self.support.map.update_map_obs()
 
         observation = {
             "pos": self.support.map.pos,
-            "pos_memory": self.support.map.pos_memory
+            # "pos_memory": self.support.map.pos_memory,
+            "unseen_positions": self.support.map.unseen_positions,
         }
         return observation
 
