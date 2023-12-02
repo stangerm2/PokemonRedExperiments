@@ -39,7 +39,7 @@ class RedGymMap:
         self.location_history = deque()
         self.sin_cords = np.zeros((16,), dtype=np.float32)
 
-        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
+        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.screen_visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
 
         self.tester = RedGymObsTester(self)
@@ -114,8 +114,8 @@ class RedGymMap:
                 address = start_addr + col * increment_per_column
                 
                 tile_val = self.env.game.get_memory_value(address)
-                tile_val = (tile_val / 256.0)  # normalize
-                tile_val = math.floor(tile_val * 10 ** 4) / 10 ** 4  # truncate 4 dec places
+                # tile_val = (tile_val / 256.0)  # normalize
+                # tile_val = math.floor(tile_val * 10 ** 4) / 10 ** 4  # truncate 4 dec places
 
                 self.screen[row][col] = tile_val
 

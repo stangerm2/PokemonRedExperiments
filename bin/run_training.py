@@ -24,42 +24,47 @@ import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
-class FourierFeatureExtractor(BaseFeaturesExtractor):
+class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
-        super(FourierFeatureExtractor, self).__init__(observation_space, features_dim)
-        
-        # Assuming 'pos' is Fourier-encoded data
-        self.pos_linear = nn.Sequential(
-            nn.Linear(16, 128),  # Adjust based on your Fourier data dimension
+        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+
+        # Define CNN architecture for spatial inputs
+        self.cnn = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
+            nn.Flatten()
         )
 
-        # RNN layer for 'pos'
-        self.pos_rnn = nn.LSTM(input_size=128, hidden_size=128, num_layers=1, batch_first=True)
+        # Fully connected layer for the one-hot encoded vector
+        self.fc_p2p = nn.Sequential(
+            nn.Linear(37, 16),
+            nn.ReLU()
+        )
 
-        # Flatten layers for other inputs
-        self.pos_map_flatten = nn.Flatten(start_dim=1, end_dim=-1)
-        self.unseen_positions_flatten = nn.Flatten(start_dim=1, end_dim=-1)
-
-        # Final combined layer
-        self.final_layer = nn.Linear(2445, features_dim)
+        # Output layer to combine features
+        self.fc_combined = nn.Sequential(
+            nn.Linear(16 * (7 + 3) * 7 * 2 + 16, features_dim),  # Adjust input size
+            nn.ReLU()
+        )
 
     def forward(self, observations):
-        # Process Fourier-encoded 'pos' data through linear and RNN layers
-        pos_data = self.pos_linear(observations['pos'])
-        batch_size = pos_data.size(0) 
-        pos_data = pos_data.view(batch_size, -1, 128)
+        screen = observations["screen"].float() / 255  # Normalize and add channel dimension
+        screen = screen.unsqueeze(1)  # Shape: [batch_size, 1, 10, 7]
 
-        pos_rnn_out, _ = self.pos_rnn(pos_data)
-        pos_features = pos_rnn_out[:, -1, :]  # Use the last output of RNN
+        screen_visited = observations["screen_visited"].float().unsqueeze(1)  # Shape: [batch_size, 1, 10, 7]
 
-        # Flatten features for other inputs
-        pos_map_features = self.pos_map_flatten(observations['pos_map']).view(batch_size, -1)
-        unseen_pos_features = self.unseen_positions_flatten(observations['unseen_positions']).view(batch_size, -1)
+        p2p = observations["p2p"].float()
 
-        # Combine all features
-        combined = torch.cat([pos_features, pos_map_features, unseen_pos_features], dim=1)
-        return self.final_layer(combined)
+        # Apply CNN to spatial inputs
+        screen_features = self.cnn(screen)
+        screen_visited_features = self.cnn(screen_visited)
+
+        # Apply fully connected layer to p2p input
+        p2p_features = self.fc_p2p(p2p)
+
+        # Combine features
+        combined = torch.cat([screen_features, screen_visited_features, p2p_features], dim=1)
+        return self.fc_combined(combined)
 
 
 def make_env(thread_id, env_conf, seed=0):
@@ -142,7 +147,8 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
-        model = PPO("MultiInputPolicy", env, 
+        model = PPO("MultiInputPolicy", env, policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
+                           "features_extractor_kwargs": {"features_dim": 64}},
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 

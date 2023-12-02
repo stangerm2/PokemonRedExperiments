@@ -35,7 +35,7 @@ class RedGymObsTester:
             self.p2p_found += 1
 
             self.p2p_obs[self.discovery_index] = 1
-            
+
             self.discovery_index += 1
             if self.discovery_index == MAX_DISCOVERY:
                 self.discovery_index = 0

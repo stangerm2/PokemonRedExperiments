@@ -14,7 +14,7 @@ from red_gym_map import *
 def initialize_observation_space():
     return spaces.Dict(
         {
-            "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
+            "screen": spaces.Box(low=0, high=255, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
             "screen_visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
             "p2p": spaces.Box(low=0, high=1, shape=(37,), dtype=np.uint8),
         }
