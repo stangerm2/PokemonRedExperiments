@@ -1,4 +1,5 @@
 import math
+import torch
 
 import numpy as np
 from collections import deque
@@ -37,6 +38,8 @@ class RedGymMap:
         self.new_map = 0
         self.moved_location = False
         self.location_history = deque()
+        self.sin_cords = np.zeros((16,), dtype=np.float32)
+        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
 
         self.tester = RedGymObsTester(self)
 
@@ -55,6 +58,30 @@ class RedGymMap:
             self.steps_discovered += 1
 
         return reward
+    
+
+    def update_memory(self, sin_pos):
+        # Calculate the starting index in self.obs_memory for the new data
+
+        # Update the map number and sinusoidal encoded positions
+        if sin_pos.is_cuda:
+            sin_pos = sin_pos.cpu().numpy()
+        else:
+            sin_pos = sin_pos.numpy()
+        self.sin_cords[0:16] = sin_pos
+
+    def encode_coords(self, new_x_pos, new_y_pos, freqs=8):
+        """
+        Converts coordinates into a sinusoidal (fourier) embedding
+        new_x_pos, new_y_pos: The x and y coordinates to encode
+        freqs: number of frequencies/octaves to encode coordinates into
+        returns: array of encoded coordinates [1,freqs*2]
+        """
+        coords = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
+        return torch.hstack([
+            torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
+            torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
+        ])
 
     def _calculate_exploration_bonus(self):
         bonus = math.log10(len(self.visited_pos)) if len(self.visited_pos) > 0 else 0
@@ -68,39 +95,56 @@ class RedGymMap:
     def update_map_obs(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
 
+        self._update_tile_obs(x_pos_new, y_pos_new, n_map_new)
+        self._update_visited_obs(x_pos_new, y_pos_new, n_map_new)
         self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
-        self._update_unseen_pos_obs(x_pos_new, y_pos_new, n_map_new)
+
+    def _update_tile_obs(self, x_pos_new, y_pos_new, n_map_new):
+        # Starting addresses for each row
+        starting_addresses = [TILE_COL_0_ROW_0, TILE_COL_0_ROW_1, TILE_COL_0_ROW_2, TILE_COL_0_ROW_3,
+                               TILE_COL_0_ROW_4, TILE_COL_0_ROW_5, TILE_COL_0_ROW_6]
+        num_columns = SCREEN_VIEW_SIZE
+        increment_per_column = 2
+
+        for row, start_addr in enumerate(starting_addresses):
+            for col in range(num_columns):
+                address = start_addr + col * increment_per_column
+                
+                tile_val = self.env.game.get_memory_value(address)
+                tile_val = (tile_val / 511.0) + 0.5  # normalize
+                
+                self.screen[row][col] = tile_val
+
+
+    def _update_visited_obs(self, x_pos_new, y_pos_new, n_map_new):
+        center_x = center_y = SCREEN_VIEW_SIZE // 2
+
+        for y in range(SCREEN_VIEW_SIZE):
+            for x in range(SCREEN_VIEW_SIZE):
+                x_offset = x - center_x
+                y_offset = y - center_y
+                current_pos = (x_pos_new + x_offset, y_pos_new + y_offset, n_map_new)
+
+                if current_pos in self.visited_pos:
+                    self.screen[y][x] -= 0.5
+
+                self.screen[y][x] = math.floor(self.screen[y][x] * 10 ** 4) / 10 ** 4  # truncate 4 dec places
 
     def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
-        facing_dir = self.env.game.get_memory_value(PLAYER_FACING_DIR)
-        tile_above = self.env.game.get_memory_value(TILE_ABOVE_PLAYER)
-        tile_below = self.env.game.get_memory_value(TILE_BELOW_PLAYER)
-        tile_left = self.env.game.get_memory_value(TILE_LEFT_OF_PLAYER)
-        tile_right = self.env.game.get_memory_value(TILE_RIGHT_OF_PLAYER)
-        tile_bump = self.env.game.get_memory_value(TILE_CURRENT_AND_FRONT_BUMP_PLAYER)
+        x_pos_binary = format(x_pos_new, f'0{SCREEN_VIEW_SIZE}b')
+        y_pos_binary = format(y_pos_new, f'0{SCREEN_VIEW_SIZE}b')
+        m_pos_binary = format(n_map_new, f'0{SCREEN_VIEW_SIZE}b')
+    
+        for i, bit in enumerate(x_pos_binary):
+            self.screen[SCREEN_VIEW_SIZE][i] = bit
 
-        self.pos = np.array([x_pos_new, y_pos_new, n_map_new, facing_dir, tile_above,
-                            tile_below, tile_left, tile_right, tile_bump])
+        for i, bit in enumerate(y_pos_binary):
+            self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
 
-        # self.pos_memory = np.roll(self.pos_memory, POS_BYTES)
-        # self.pos_memory[:XYM_BYTES] = self.pos[:XYM_BYTES]
+        for i, bit in enumerate(m_pos_binary):
+            self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
 
         self.update_map_stats()
-
-    def _update_unseen_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
-        i = 0
-        for x_offset, y_offset in TWO_MOVE_POS:
-            current_pos = (x_pos_new + x_offset, y_pos_new + y_offset, n_map_new)
-
-            if current_pos in self.visited_pos:
-                self.unseen_positions[i] = True
-            else:
-                self.unseen_positions[i] = False
-
-            i += 1
-
-        if self.env.debug:
-            print(self.unseen_positions)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
@@ -159,9 +203,7 @@ class RedGymMap:
         debug_str += f"Start location: {self.x_pos_org, self.y_pos_org, self.n_map_org} \n"
         debug_str += f"New location: {new_x_pos, new_y_pos, new_map_n} \n"
         debug_str += f"\n"
-        debug_str += f"{self.pos}"
-        debug_str += f"\n"
-        debug_str += f"{self.pos_memory}"
+        debug_str += f"{self.screen}"
 
         if len(self.location_history) > 10:
             self.location_history.popleft()

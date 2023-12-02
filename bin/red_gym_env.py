@@ -14,9 +14,7 @@ from red_gym_map import *
 def initialize_observation_space():
     return spaces.Dict(
         {
-            "pos": spaces.MultiDiscrete([BYTE_SIZE] * POS_BYTES),
-            #"pos_memory": spaces.MultiDiscrete([BYTE_SIZE] * POS_HISTORY_SIZE * XYM_BYTES),
-            "unseen_positions": spaces.MultiBinary(NEXT_STEP_VISITED),
+            "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
         }
     )
 
@@ -88,7 +86,7 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return observation, self.total_reward * 0.1, False, step_limit_reached, {}
+        return observation, self.total_reward * 0.009, False, step_limit_reached, {}
 
     def _run_pre_action_steps(self):
         self.support.map.save_pre_action_pos()
@@ -111,16 +109,14 @@ class RedGymEnv(Env):
         self.support.map.update_map_obs()
 
         observation = {
-            "pos": self.support.map.pos,
-            # "pos_memory": self.support.map.pos_memory,
-            "unseen_positions": self.support.map.unseen_positions,
+            "screen": self.support.map.screen,
         }
         return observation
 
     def _update_rewards(self, action):
         state_scores = {
-            'pallet_town_explorer': self.reward_scale * self.support.map.pallet_town_explorer_reward(),
-            'pallet_town_point_nav': self.reward_scale * self.support.map.tester.pallet_town_point_nav(),
+            'pallet_town_explorer': self.support.map.pallet_town_explorer_reward(),
+            'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
         }
 
         # TODO: If pass in some test flag run just a single test reward

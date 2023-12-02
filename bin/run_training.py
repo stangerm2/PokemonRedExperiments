@@ -19,45 +19,48 @@ embedding_size_y = 8
 embedding_size_map = 8
 POS_MEMORY_SIZE = 10
 
-class CustomFeatureExtractor(BaseFeaturesExtractor):
+import torch
+import torch.nn as nn
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+
+
+class FourierFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
-        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+        super(FourierFeatureExtractor, self).__init__(observation_space, features_dim)
+        
+        # Assuming 'pos' is Fourier-encoded data
+        self.pos_linear = nn.Sequential(
+            nn.Linear(16, 128),  # Adjust based on your Fourier data dimension
+            nn.ReLU(),
+        )
 
-        self.x_embedding = nn.Embedding(256, embedding_size_x)
-        self.y_embedding = nn.Embedding(256, embedding_size_y)
-        self.map_embedding = nn.Embedding(256, embedding_size_map)
+        # RNN layer for 'pos'
+        self.pos_rnn = nn.LSTM(input_size=128, hidden_size=128, num_layers=1, batch_first=True)
 
-        # Assuming each sequence length is 10
-        sequence_length = 6
+        # Flatten layers for other inputs
+        self.pos_map_flatten = nn.Flatten(start_dim=1, end_dim=-1)
+        self.unseen_positions_flatten = nn.Flatten(start_dim=1, end_dim=-1)
 
-        # RNN layer
-        self.rnn = nn.GRU(input_size=embedding_size_x + embedding_size_y + embedding_size_map,
-                          hidden_size=64,
-                          num_layers=1,
-                          batch_first=True)
-
-        # Linear layer for processing RNN output
-        self.fc = nn.Linear(64 * POS_MEMORY_SIZE, features_dim)
+        # Final combined layer
+        self.final_layer = nn.Linear(2445, features_dim)
 
     def forward(self, observations):
-        # Embed each x and y coordinate in the sequence
-        x_embedded = self.x_embedding(observations["pos_x"].long()).view(-1, 10, embedding_size_x)
-        y_embedded = self.y_embedding(observations["pos_y"].long()).view(-1, 10, embedding_size_y)
-        map_embedded = self.map_embedding(observations["map"].long()).view(-1, 10, embedding_size_map)
+        # Process Fourier-encoded 'pos' data through linear and RNN layers
+        pos_data = self.pos_linear(observations['pos'])
+        batch_size = pos_data.size(0) 
+        pos_data = pos_data.view(batch_size, -1, 128)
 
-        # Concatenate embeddings
-        combined_embeddings = torch.cat((x_embedded, y_embedded, map_embedded), dim=2)
+        pos_rnn_out, _ = self.pos_rnn(pos_data)
+        pos_features = pos_rnn_out[:, -1, :]  # Use the last output of RNN
 
-        # Process sequence with RNN
-        rnn_output, _ = self.rnn(combined_embeddings)
+        # Flatten features for other inputs
+        pos_map_features = self.pos_map_flatten(observations['pos_map']).view(batch_size, -1)
+        unseen_pos_features = self.unseen_positions_flatten(observations['unseen_positions']).view(batch_size, -1)
 
-        # Flatten RNN output for linear layer
-        rnn_output_flattened = rnn_output.contiguous().view(rnn_output.size(0), -1)
+        # Combine all features
+        combined = torch.cat([pos_features, pos_map_features, unseen_pos_features], dim=1)
+        return self.final_layer(combined)
 
-        # Final processing with linear layer
-        features = self.fc(rnn_output_flattened)
-
-        return features
 
 def make_env(thread_id, env_conf, seed=0):
     """
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     num_cpu = 120  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
-        # env_config['debug'] = True
+        env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 
@@ -139,7 +142,7 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
-        model = PPO("MultiInputPolicy", env,
+        model = PPO("MultiInputPolicy", env, 
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
