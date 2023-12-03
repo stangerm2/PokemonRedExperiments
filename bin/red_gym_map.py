@@ -6,6 +6,7 @@ from collections import deque
 
 # Assuming these constants are defined in red_env_constants
 from red_env_constants import *
+from ram_reader.red_memory_map import *
 
 from red_gym_obs_tester import RedGymObsTester
 
@@ -166,9 +167,9 @@ class RedGymMap:
                 self.new_map = True
 
     def get_current_location(self):
-        x_pos = self.env.game.get_memory_value(0xD362)
-        y_pos = self.env.game.get_memory_value(0xD361)
-        map_n = self.env.game.get_memory_value(0xD35E)
+        x_pos = self.env.game.get_memory_value(PLAYER_LOCATION_X)
+        y_pos = self.env.game.get_memory_value(PLAYER_LOCATION_Y)
+        map_n = self.env.game.get_memory_value(PLAYER_MAP)
         return x_pos, y_pos, map_n
 
     def save_pre_action_pos(self):
