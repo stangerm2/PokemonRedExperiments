@@ -1,11 +1,24 @@
-import json
-import threading
+import math
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from red_gym_map import RedGymMap
+from red_env_constants import *
 
+
+def calc_byte_float_norm():
+    bytes_norm = []
+    for i in range(BYTE_SIZE):
+        bytes_norm.append(math.floor((i / 256.0) * 10 ** 4) / 10 ** 4) # normalize lookup for 0-255
+
+    return bytes_norm
+
+
+class RedGymGlobalMemory:
+    def __init__(self):
+        self.byte_to_float_norm = calc_byte_float_norm()
 
 
 class RedGymEnvSupport:

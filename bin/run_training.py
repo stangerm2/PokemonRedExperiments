@@ -98,7 +98,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 120  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
         env_config['debug'] = True
@@ -131,7 +131,8 @@ if __name__ == '__main__':
         callbacks.append(WandbCallback())
 
     # put a checkpoint here you want to start from
-    file_name = ''#'../saved_runs/session_24763c7f/poke_10321920_steps'
+    file_name = ''
+    # file_name = '../saved_runs/session_b8e28b22/poke_125337600_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')
@@ -146,9 +147,9 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        # policy_kwargs={'features_extractor_class': CustomFeatureExtractor},
-        model = PPO("MultiInputPolicy", env, policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
-                           "features_extractor_kwargs": {"features_dim": 64}},
+        # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
+        #                   "features_extractor_kwargs": {"features_dim": 64}},
+        model = PPO("MultiInputPolicy", env, 
                     verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998,
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 

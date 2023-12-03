@@ -10,18 +10,6 @@ from red_env_constants import *
 from red_gym_obs_tester import RedGymObsTester
 
 
-THREE_MOVE_POS = [
-    (0, 0),
-    (0, 1), (0, -1), (1, 0), (-1, 0),
-    (0, 2), (0, -2), (1, 1), (1, -1), (-1, 1), (-1, -1), (2, 0), (-2, 0),
-    (0, 3), (0, -3), (1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1), (3, 0), (-3, 0)
-]
-
-TWO_MOVE_POS = [
-    (-2, 0), (-1, -1), (-1, 0), (-1, 1), (0, -2), (0, -1), (0, 0), (0, 1), (0, 2), (1, -1), (1, 0), (1, 1), (2, 0)
-]
-
-
 class RedGymMap:
     def __init__(self, env):
         if env.debug:
@@ -29,8 +17,6 @@ class RedGymMap:
 
         self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
-        self.pos_memory = np.zeros((POS_HISTORY_SIZE * POS_BYTES,), dtype=np.uint8)
-        self.pos = np.zeros((POS_BYTES,), dtype=np.uint8)
         self.steps_discovered = 0
         self.visited_pos = {}
         self.visited_pos_order = deque()
@@ -39,8 +25,8 @@ class RedGymMap:
         self.location_history = deque()
         self.sin_cords = np.zeros((16,), dtype=np.float32)
 
-        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.screen_visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
+        self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
 
         self.tester = RedGymObsTester(self)
 
@@ -114,10 +100,7 @@ class RedGymMap:
                 address = start_addr + col * increment_per_column
                 
                 tile_val = self.env.game.get_memory_value(address)
-                # tile_val = (tile_val / 256.0)  # normalize
-                # tile_val = math.floor(tile_val * 10 ** 4) / 10 ** 4  # truncate 4 dec places
-
-                self.screen[row][col] = tile_val
+                self.screen[row][col] = self.env.memory.byte_to_float_norm[tile_val]
 
 
     def _update_visited_obs(self, x_pos_new, y_pos_new, n_map_new):
@@ -130,9 +113,9 @@ class RedGymMap:
                 current_pos = (x_pos_new + x_offset, y_pos_new + y_offset, n_map_new)
 
                 if current_pos in self.visited_pos:
-                    self.screen_visited[y][x] = 0
+                    self.visited[y][x] = 0
                 else:
-                    self.screen_visited[y][x] = 1
+                    self.visited[y][x] = 1
 
 
     def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
@@ -142,15 +125,16 @@ class RedGymMap:
     
         for i, bit in enumerate(x_pos_binary):
             self.screen[SCREEN_VIEW_SIZE][i] = bit
-            self.screen_visited[SCREEN_VIEW_SIZE][i] = bit
+            self.visited[SCREEN_VIEW_SIZE][i] = bit
 
         for i, bit in enumerate(y_pos_binary):
             self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
-            self.screen_visited[SCREEN_VIEW_SIZE + 1][i] = bit
+            self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
 
         for i, bit in enumerate(m_pos_binary):
             self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
-            self.screen_visited[SCREEN_VIEW_SIZE + 2][i] = bit
+            self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
+
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
@@ -213,8 +197,7 @@ class RedGymMap:
         debug_str += f"\n"
         debug_str += f"{self.screen}"
         debug_str += f"\n"
-        debug_str += f"{self.screen_visited}"
-
+        debug_str += f"{self.visited}"
 
         if len(self.location_history) > 10:
             self.location_history.popleft()

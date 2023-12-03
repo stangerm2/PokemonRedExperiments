@@ -22,7 +22,8 @@ class RedGymObsTester:
         self.env = env
         self.discovery_index = 0
         self.p2p_found = 0
-        self.p2p_obs = np.zeros((37,), dtype=np.uint8)
+        self.p2p_obs = np.zeros((200,), dtype=np.uint8)
+        self.count_obs = 0
 
     def pallet_town_point_nav(self):
         x_pos, y_pos, map_n = self.env.get_current_location()
@@ -34,7 +35,9 @@ class RedGymObsTester:
             reward = 100
             self.p2p_found += 1
 
-            self.p2p_obs[self.discovery_index] = 1
+            if self.count_obs < 200:
+                self.p2p_obs[self.count_obs] = 1
+                self.count_obs += 1
 
             self.discovery_index += 1
             if self.discovery_index == MAX_DISCOVERY:

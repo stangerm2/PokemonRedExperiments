@@ -3,7 +3,7 @@ from pathlib import Path
 
 from gymnasium import Env, spaces
 
-from red_gym_env_support import RedGymEnvSupport
+from red_gym_env_support import RedGymEnvSupport, RedGymGlobalMemory
 from red_pyboy_manager import PyBoyManager
 from red_gym_screen import RedGymScreen
 from red_env_constants import *
@@ -14,9 +14,9 @@ from red_gym_map import *
 def initialize_observation_space():
     return spaces.Dict(
         {
-            "screen": spaces.Box(low=0, high=255, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
-            "screen_visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
-            "p2p": spaces.Box(low=0, high=1, shape=(37,), dtype=np.uint8),
+            "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
+            "visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
+            "p2p": spaces.Box(low=0, high=1, shape=(200,), dtype=np.uint8),
         }
     )
 
@@ -47,6 +47,7 @@ class RedGymEnv(Env):
 
         self.screen = RedGymScreen(self)
         self.game = PyBoyManager(self)
+        self.memory = RedGymGlobalMemory()
 
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
@@ -112,7 +113,7 @@ class RedGymEnv(Env):
 
         observation = {
             "screen": self.support.map.screen,
-            "screen_visited": self.support.map.screen_visited,
+            "visited": self.support.map.visited,
             "p2p" : self.support.map.tester.p2p_obs,
         }
         return observation
