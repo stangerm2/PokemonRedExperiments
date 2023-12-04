@@ -11,7 +11,7 @@ from red_env_constants import *
 def calc_byte_float_norm():
     bytes_norm = []
     for i in range(BYTE_SIZE):
-        bytes_norm.append(math.floor((i / 256.0) * 10 ** 4) / 10 ** 4) # normalize lookup for 0-255
+        bytes_norm.append(math.floor((i / 4096.0) * 10 ** 4) / 10 ** 4) # normalize lookup 0-255 to 4-digit float
 
     return bytes_norm
 

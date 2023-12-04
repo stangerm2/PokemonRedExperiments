@@ -24,7 +24,6 @@ class RedGymMap:
         self.new_map = 0
         self.moved_location = False
         self.location_history = deque()
-        self.sin_cords = np.zeros((16,), dtype=np.float32)
 
         self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
@@ -40,36 +39,13 @@ class RedGymMap:
         elif not self.moved_location:
             reward = 0
         elif (x_pos, y_pos, map_n) in self.visited_pos:
-            reward = 1
+            reward = 0.01
         else:
-            reward = 1 + bonus
+            reward = 1
             self.steps_discovered += 1
 
         return reward
     
-
-    def update_memory(self, sin_pos):
-        # Calculate the starting index in self.obs_memory for the new data
-
-        # Update the map number and sinusoidal encoded positions
-        if sin_pos.is_cuda:
-            sin_pos = sin_pos.cpu().numpy()
-        else:
-            sin_pos = sin_pos.numpy()
-        self.sin_cords[0:16] = sin_pos
-
-    def encode_coords(self, new_x_pos, new_y_pos, freqs=8):
-        """
-        Converts coordinates into a sinusoidal (fourier) embedding
-        new_x_pos, new_y_pos: The x and y coordinates to encode
-        freqs: number of frequencies/octaves to encode coordinates into
-        returns: array of encoded coordinates [1,freqs*2]
-        """
-        coords = torch.tensor([[new_x_pos, new_y_pos]], dtype=torch.float32, device="cpu")
-        return torch.hstack([
-            torch.outer(coords[:, 0], 2 ** torch.arange(freqs, device="cpu")).sin(),
-            torch.outer(coords[:, 1], 2 ** torch.arange(freqs, device="cpu")).sin()
-        ])
 
     def _calculate_exploration_bonus(self):
         bonus = math.log10(len(self.visited_pos)) if len(self.visited_pos) > 0 else 0
@@ -80,14 +56,17 @@ class RedGymMap:
 
         return bonus
 
+
     def update_map_obs(self):
         x_pos_new, y_pos_new, n_map_new = self.get_current_location()
 
         self._update_tile_obs(x_pos_new, y_pos_new, n_map_new)
         self._update_visited_obs(x_pos_new, y_pos_new, n_map_new)
+        self._update_npc_obs(x_pos_new, y_pos_new, n_map_new)  # Overwrites '_update_visited_obs' for npc's, must stay in order
         self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
 
         self.update_map_stats()
+        
 
     def _update_tile_obs(self, x_pos_new, y_pos_new, n_map_new):
         # Starting addresses for each row
@@ -101,22 +80,22 @@ class RedGymMap:
                 address = start_addr + col * increment_per_column
                 
                 tile_val = self.env.game.get_memory_value(address)
-                self.screen[row][col] = self.env.memory.byte_to_float_norm[tile_val]
+                self.screen[row][col] = self.env.memory.byte_to_float_norm[tile_val] + 0.1  # Norm range 0 - 0.0622 for byte input, assign higher prio w/ .9
 
 
     def _update_visited_obs(self, x_pos_new, y_pos_new, n_map_new):
-        center_x = center_y = SCREEN_VIEW_SIZE // 2
+        callback = lambda x, y, pos: self._update_matrix_visited(x, y, pos)
+        self._traverse_matrix(x_pos_new, y_pos_new, n_map_new, callback)
 
-        for y in range(SCREEN_VIEW_SIZE):
-            for x in range(SCREEN_VIEW_SIZE):
-                x_offset = x - center_x
-                y_offset = y - center_y
-                current_pos = (x_pos_new + x_offset, y_pos_new + y_offset, n_map_new)
+        # NOTE: it's critical to NOT set cur pos as visited on the obs until the next turn, it REALLY helps the AI
+        # self.visited[3][3] = 0
 
-                if current_pos in self.visited_pos:
-                    self.visited[y][x] = 0
-                else:
-                    self.visited[y][x] = 1
+
+    def _update_npc_obs(self, x_pos_new, y_pos_new, n_map_new):
+        sprites = self._get_sprites(n_map_new)
+
+        callback = lambda x, y, pos: self._update_matrix_npc(x, y, pos, sprites)
+        self._traverse_matrix(x_pos_new, y_pos_new, n_map_new, callback)
 
 
     def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
@@ -135,6 +114,55 @@ class RedGymMap:
         for i, bit in enumerate(m_pos_binary):
             self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
             self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
+
+
+    def _traverse_matrix(self, x_pos_new, y_pos_new, n_map_new, callback):
+        center_x = center_y = SCREEN_VIEW_SIZE // 2
+
+        for y in range(SCREEN_VIEW_SIZE):
+            for x in range(SCREEN_VIEW_SIZE):
+                center_x = center_y = SCREEN_VIEW_SIZE // 2
+                x_offset = x - center_x
+                y_offset = y - center_y
+                current_pos = x_pos_new + x_offset, y_pos_new + y_offset, n_map_new
+
+                callback(x, y, current_pos)
+
+
+    def _get_sprites(self, n_map_new):
+        sprites = {}
+        for i, sprite_addr in enumerate(SPRITE_STARTING_ADDRESSES):
+            on_screen = self.env.game.get_memory_value(sprite_addr + 0x0002)
+
+            if on_screen == 0xFF:
+                continue
+
+            # TODO: Moving sprites cause learning problems, figure out how to handle them later. This make's them invisible on the screen to the AI
+            can_move = self.env.game.get_memory_value(sprite_addr + 0x0106)
+            if can_move != 0xFF:
+                continue
+            
+            picture_id = self.env.game.get_memory_value(sprite_addr)
+            x_pos = self.env.game.get_memory_value(sprite_addr + 0x0105) - 4  # topmost 2x2 tile has value 4), thus the offset
+            y_pos = self.env.game.get_memory_value(sprite_addr + 0x0104) - 4  # topmost 2x2 tile has value 4), thus the offset
+            # NOTE: facing might be useful for trainer battle navigation but requires more complex matrix to add in
+            # facing = self.env.game.get_memory_value(sprite_addr + 0x0009)
+
+            sprites[(x_pos, y_pos, n_map_new)] = picture_id
+            
+        return sprites
+
+
+    def _update_matrix_visited(self, x, y, pos):
+        if pos in self.visited_pos:
+            self.visited[y][x] = 0
+        else:
+            self.visited[y][x] = 1
+
+
+    def _update_matrix_npc(self, x, y, pos, sprites):
+        if pos in sprites:
+            self.screen[y][x] = self.env.memory.byte_to_float_norm[sprites[pos]]  # Norm range 0 - 0.0622 for byte input, assign higher prio w/ .8
 
 
     def save_post_action_pos(self):
@@ -172,6 +200,7 @@ class RedGymMap:
         map_n = self.env.game.get_memory_value(PLAYER_MAP)
         return x_pos, y_pos, map_n
 
+
     def save_pre_action_pos(self):
         # TODO: Only save pos history if moved but need moved flag in obs
         self.x_pos_org, self.y_pos_org, self.n_map_org = self.get_current_location()
@@ -184,6 +213,7 @@ class RedGymMap:
         if current_pos not in self.visited_pos:
             self.visited_pos[current_pos] = self.env.step_count
             self.visited_pos_order.append(current_pos)
+
 
     def update_map_stats(self):
         new_x_pos, new_y_pos, new_map_n = self.get_current_location()

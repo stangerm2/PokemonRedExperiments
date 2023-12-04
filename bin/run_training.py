@@ -98,7 +98,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 120  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
         env_config['debug'] = True
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    # file_name = '../saved_runs/session_b8e28b22/poke_125337600_steps'
+    # file_name = '../saved_runs/session_f65feb5b/poke_124108800_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

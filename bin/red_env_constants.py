@@ -20,7 +20,7 @@ XYM_BYTES = 3
 POS_MAP_DETAIL_BYTES = 6
 SCREEN_VIEW_SIZE = 7
 NEXT_STEP_VISITED = 13  # Num of pos's that are within two moves from cur pos + cur pos
-PYBOY_RUN_SPEED = 3
+PYBOY_RUN_SPEED = 1
 MAP_VALUE_PALLET_TOWN = 12
 
 GLOBAL_SEED = 0
