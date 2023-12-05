@@ -4,7 +4,7 @@ PLAYER_LOADED_POKEMON = 0xCC2F # Index of fighting mon, stale out battle.
 # General Battle Flags and Status
 IN_BATTLE = 0xD057  # Battle type (normal, safari, etc.)
 PARTY_XP_COUNT = 0xD058  # 0x0 during animation, Stale out of battle
-CURRENT_OPPONENT = 0xD059 # Set the moment battle anim begins, and clears on battle end
+CURRENT_OPPONENT = 0xD059 # Set the moment battle anim begins, and clears on battle end (not used for wild mon)
 BATTLE_TYPE = 0xD05A # (Normal battle, Safari Zone, Old Man battle...)
 CRITICAL_HIT_OHKO_FLAG = 0xD05E  # Critical hit or OHKO flag
 MOVE_MISSED = 0xD05F
@@ -13,6 +13,7 @@ MOVE_MISSED = 0xD05F
 TURNS_IN_CURRENT_BATTLE = 0xCCD5 # Player + Enemy Move = 1 Turn (Resets only on next battle)
 PLAYER_SELECTED_MOVE = 0xCCDC # Stale out of battle
 ENEMY_SELECTED_MOVE = 0xCCDD # Stale out of battle
+BATTLE_TEXT_PAUSE_FLAG = 0xCC52
 
 # Player's Attack Move Information (Refreshed while in battle 'Fight' menu, else stale even in battle)
 PLAYERS_MOVE_NUM = 0xCFD2
@@ -48,12 +49,8 @@ ENEMYS_POKEMON_LEVEL = 0xCFF3  # Enemy's level, Stale out of battle
 ENEMYS_POKEMON_HP = (0xCFE6, 0xCFE7)  # Enemy's current HP
 
 ENEMYS_POKEMON_STATUS = 0xCFE9  # Enemy's status effects, Stale out of battle
-ENEMYS_POKEMON_TYPE_1 = 0xCFEA  # Enemy's primary type, Stale out of battle
-ENEMYS_POKEMON_TYPE_2 = 0xCFEB  # Enemy's secondary type, Stale out of battle
-ENEMYS_POKEMON_MOVE_1 = 0xCFED  # Enemy's first move, Stale out of battle
-ENEMYS_POKEMON_MOVE_2 = 0xCFEE  # Enemy's second move, Stale out of battle
-ENEMYS_POKEMON_MOVE_3 = 0xCFEF  # Enemy's third move, Stale out of battle
-ENEMYS_POKEMON_MOVE_4 = 0xCFF0  # Enemy's fourth move, Stale out of battle
+ENEMYS_POKEMON_TYPES = (0xCFEA, 0xCFEB)  # Enemy's type, Stale out of battle
+ENEMYS_POKEMON_MOVES = (0xCFED, 0xCFEE, 0xCFEF, 0xCFF0)  # Enemy's moves, Stale out of battle
 
 # Enemy's Battle Information
 ENEMYS_MOVE_ID = 0xCFCC  # Enemy's Move ID
@@ -73,6 +70,7 @@ ENEMYS_POKEMON_MAX_PP_FIRST_SLOT = 0xCFFE  # Enemy's PP for the first move slot
 ENEMYS_POKEMON_MAX_PP_SECOND_SLOT = 0xCFFF  # Enemy's PP for the second move slot
 ENEMYS_POKEMON_MAX_PP_THIRD_SLOT = 0xD000  # Enemy's PP for the third move slot
 ENEMYS_POKEMON_MAX_PP_FOURTH_SLOT = 0xD001  # Enemy's PP for the fourth move slot
+ENEMYS_POKEMON_ATTACK_MODIFIER = 0xCD2E  # TODO: Needs to be verified
 ENEMYS_POKEMON_DEFENSE_MODIFIER = 0xCD2F
 ENEMYS_POKEMON_SPEED_MODIFIER = 0xCD30
 ENEMYS_POKEMON_SPECIAL_MODIFIER = 0xCD31

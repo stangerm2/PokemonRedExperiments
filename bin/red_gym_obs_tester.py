@@ -22,7 +22,7 @@ class RedGymObsTester:
         self.env = env
         self.discovery_index = 0
         self.p2p_found = 0
-        self.p2p_obs = np.zeros((200,), dtype=np.uint8)
+        self.p2p_obs = np.zeros((50,), dtype=np.uint8)
         self.count_obs = 0
 
     def pallet_town_point_nav(self):

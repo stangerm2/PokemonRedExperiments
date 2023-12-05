@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 
 from pyboy import PyBoy, WindowEvent
 from pyboy.logger import log_level
@@ -50,6 +51,8 @@ class PyBoyManager:
         self.env = env
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
+        self.action_history = np.zeros((1,), dtype=np.uint8)
+        
         self.setup_pyboy()
 
     def setup_pyboy(self):
@@ -81,6 +84,11 @@ class PyBoyManager:
 
     def _read_bit(self, addr, bit: int) -> bool:
         return bin(256 + self.get_memory_value(addr))[-bit - 1] == '1'
+    
+    def _update_action_obs(self, action):
+        # NOTE: If action history is wanted, needs testing
+        # self.action_history = np.roll(self.action_history, 1)
+        self.action_history[0] = action
 
     def run_dpad_cmd(self, action, termination_action):
         if not self.env.save_video and self.env.headless:
@@ -128,14 +136,19 @@ class PyBoyManager:
         #if not (termination_action == WindowEvent.RELEASE_BUTTON_B or termination_action == WindowEvent.RELEASE_BUTTON_A):
         #    self.env.support.save_screenshot()
 
-    def run_action_on_emulator(self, action):
+    def run_action_on_emulator(self, input):
+        action = self.valid_actions[input]
         termination_action = pyboy_term_actions(action)
+
+        self._update_action_obs(action)
 
         if self.env.debug:
             print(f'\n\naction: {WindowEvent(action).__str__()}')
+            print(self.action_history)
 
         if termination_action == WindowEvent.PASS:
             print(f'ignoring command')
             return
 
         self.run_dpad_cmd(action, termination_action)
+        

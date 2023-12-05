@@ -1,15 +1,8 @@
 # Pokemart items
+POKEMART_AVAIL_SIZE = 10
 POKEMART_TOTAL_ITEMS = 0xCF7B # number of items the pokemart selling, stale until interaction
-POKEMART_ITEM_1 = 0xCF7C
-POKEMART_ITEM_2 = 0xCF7D
-POKEMART_ITEM_3 = 0xCF7E
-POKEMART_ITEM_4 = 0xCF7F
-POKEMART_ITEM_5 = 0xCF80
-POKEMART_ITEM_6 = 0xCF81
-POKEMART_ITEM_7 = 0xCF82
-POKEMART_ITEM_8 = 0xCF83
-POKEMART_ITEM_9 = 0xCF84
-POKEMART_ITEM_10 = 0xCF85
+POKEMART_ITEMS = 0xCF7C
+
 
 # Bank-related addresses
 BOX_SPECIES = 0xDA81
@@ -19,30 +12,39 @@ BOX_MONS = 0xDA96
 PLAYER_MONEY = (0xD347, 0xD348, 0xD349) # Val already in base10,  ie. 0x99 0x25 0x49 == 992549 coins
 
 # Bag Items
+BAG_SIZE = 20
+ITEMS_OFFSET = 2
+
 # The count of all the items held in players bag
 BAG_TOTAL_ITEMS = 0xD31D
 
 # Items in players bag
-BAG_ITEMS = [0xD31E + i*2 for i in range(20)]
+BAG_ITEMS_INDEX = 0xD31E
 
 # Quantities of each item in players bag
-BAG_ITEM_QUANTITIES = [0xD31F + i*2 for i in range(20)]
+BAG_ITEM_QUANTITY_INDEX = 0xD31F
 
 
 # Storage/PC Items
+STORAGE_SIZE = 50
+
 # Items in storage/pc (50 items max)
-STORED_ITEMS = [0xD53B + i*2 for i in range(50)]
+PC_ITEMS_INDEX = 0xD53B
 
 # Items quantity in storage/pc
-STORED_ITEM_QUANTITIES = [0xD53C + i*2 for i in range(50)]
+PC_ITEM_QUANTITY_INDEX = 0xD53C
 
 
 # Storage/PC Pokemon
+BOX_SIZE = 20 # There are 12 boxes in the game, each box can hold 20 pokemon. The API only supports accessing the first box.
+BOX_OFFSET = 0x21
+
 # Pokemon count in storage/pc
 BOX_POKEMON_COUNT = 0xDA80
+BOX_POKEMON_NUM = 0xDA81
 
 # Pokémon 1
-BOX_POKEMON_1 = 0xDA96
+BOX_POKEMON_1 = 0xDA96 # Terminates list w/ 0xFF
 BOX_POKEMON_1_HP = (0xDA97, 0xDA98)
 BOX_POKEMON_1_LEVEL = 0xDA99
 

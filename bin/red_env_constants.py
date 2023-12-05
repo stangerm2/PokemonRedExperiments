@@ -23,4 +23,4 @@ NEXT_STEP_VISITED = 13  # Num of pos's that are within two moves from cur pos + 
 PYBOY_RUN_SPEED = 1
 MAP_VALUE_PALLET_TOWN = 12
 
-GLOBAL_SEED = 0
+GLOBAL_SEED = 2
