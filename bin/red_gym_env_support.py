@@ -7,6 +7,8 @@ from pathlib import Path
 from red_gym_map import RedGymMap
 from red_env_constants import *
 
+from ram_reader.red_ram_debug import *
+
 
 def calc_byte_float_norm():
     bytes_norm = []
@@ -46,7 +48,12 @@ class RedGymEnvSupport:
 
     def save_and_print_info(self, done):
         if self.env.print_rewards:
+            game_debug = get_debug_str(self.env.game)
+
             prog_string = self._construct_progress_string()
+            if self.env.debug:
+                print(f'\r{self.map.location_history[-1]}\n\n{game_debug}', end='', flush=True)
+
             print(f'\r{prog_string}', end='', flush=True)
 
         if self.env.print_rewards and done:
@@ -68,6 +75,10 @@ class RedGymEnvSupport:
         # Write the output string to the file
         with open(file_path, 'w') as file:
             file.write(output_str)
+
+    def normalize_np_array(self, np_array):
+        np_array = np.vectorize(lambda x: self.env.memory.byte_to_float_norm[int(x)])(np_array)
+        return np_array
 
     def _save_current_frame(self):
         plt.imsave(

@@ -91,14 +91,14 @@ if __name__ == '__main__':
 
     env_config = {
         'headless': True, 'save_final_state': True, 'early_stop': False,
-        'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length,
+        'action_freq': 24, 'init_state': '../pokemon_ai_squirt_poke_balls.state', 'max_steps': ep_length,
         'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
         'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0,
         'use_screen_explore': False, 'reward_scale': 1, 'extra_buttons': False,
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 120  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 31:
         env_config['debug'] = True
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    # file_name = '../saved_runs/session_f65feb5b/poke_124108800_steps'
+    #file_name = '../saved_runs/session_8c21005e/poke_170065920_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

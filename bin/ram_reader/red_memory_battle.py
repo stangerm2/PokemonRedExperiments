@@ -1,13 +1,19 @@
 # Players Fighter
 PLAYER_LOADED_POKEMON = 0xCC2F # Index of fighting mon, stale out battle.
 
+# Constants
+BATTLE_TOTAL_PLAYER_ATTRIBUTES = 7
+BATTLE_TOTAL_ENEMIES_ATTRIBUTES = 13
+BATTLE_TOTAL_TURN_ATTRIBUTES = 3
+
 # General Battle Flags and Status
-IN_BATTLE = 0xD057  # Battle type (normal, safari, etc.)
+BATTLE_TYPE = 0xD057  # Battle type (normal, safari, etc.)
 PARTY_XP_COUNT = 0xD058  # 0x0 during animation, Stale out of battle
 CURRENT_OPPONENT = 0xD059 # Set the moment battle anim begins, and clears on battle end (not used for wild mon)
-BATTLE_TYPE = 0xD05A # (Normal battle, Safari Zone, Old Man battle...)
+SPECIAL_BATTLE_TYPE = 0xD05A # (Normal battle, Safari Zone, Old Man battle...)
 CRITICAL_HIT_OHKO_FLAG = 0xD05E  # Critical hit or OHKO flag
 MOVE_MISSED = 0xD05F
+POKEMON_MAX_COUNT = 6
 
 # Battle Turn Info
 TURNS_IN_CURRENT_BATTLE = 0xCCD5 # Player + Enemy Move = 1 Turn (Resets only on next battle)
@@ -51,6 +57,9 @@ ENEMYS_POKEMON_HP = (0xCFE6, 0xCFE7)  # Enemy's current HP
 ENEMYS_POKEMON_STATUS = 0xCFE9  # Enemy's status effects, Stale out of battle
 ENEMYS_POKEMON_TYPES = (0xCFEA, 0xCFEB)  # Enemy's type, Stale out of battle
 ENEMYS_POKEMON_MOVES = (0xCFED, 0xCFEE, 0xCFEF, 0xCFF0)  # Enemy's moves, Stale out of battle
+
+ENEMY_TRAINER_POKEMON_HP = (0xD8A5, 0xD8A6)  # Only valid for trainers/gyms not wild mons. HP doesn't dec until mon is dead, then it's 0
+ENEMY_TRAINER_POKEMON_HP_OFFSET = 0x2C
 
 # Enemy's Battle Information
 ENEMYS_MOVE_ID = 0xCFCC  # Enemy's Move ID

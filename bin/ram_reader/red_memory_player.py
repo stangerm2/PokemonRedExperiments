@@ -1,4 +1,5 @@
 # Player Party Overview
+PARTY_OFFSET = 0x2C
 POKEMON_PARTY_COUNT = 0xD163
 POKEMON_1_ID = 0xD164 # ID of mon or 0x00 when none
 POKEMON_2_ID = 0xD165 # 0xFF marks end of list, but prev EoL isn't cleared when party size shrinks, must
@@ -7,7 +8,9 @@ POKEMON_4_ID = 0xD167
 POKEMON_5_ID = 0xD168
 POKEMON_6_ID = 0xD169
 
-PARTY_OFFSET = 0x2C
+# Player Constants
+POKEMON_TOTAL_ATTRIBUTES = 20
+MAX_MONEY = 999999.0
 
 # Pokemon 1 Details
 POKEMON_1 = 0xD16B

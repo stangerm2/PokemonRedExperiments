@@ -1,18 +1,14 @@
-from red_memory_battle import *
-from red_memory_env import *
-from red_memory_items import *
-from red_memory_map import *
-from red_memory_menus import *
-from red_memory_player import *
+from enum import IntEnum
+import numpy as np
+from pyboy import PyBoy, WindowEvent
 
-from enum import Enum
-from pyboy import WindowEvent
+from .red_memory_battle import *
+from .red_memory_env import *
+from .red_memory_items import *
+from .red_memory_map import *
+from .red_memory_menus import *
+from .red_memory_player import *
 
-'''
-GPL-3.0 License:
-Author: Matthew Stanger
-Email: stangerm2@gmail.com
-'''
 
 
 class PyBoyRAMInterface:
@@ -24,7 +20,7 @@ class PyBoyRAMInterface:
 
     def write_memory(self, address, value):
         return self.pyboy.set_memory_value(address, value)
-    
+        
 
 class Game:
     def __init__(self, pyboy):
@@ -39,28 +35,28 @@ class Game:
 
         self.game_state = self.GameState.GAME_STATE_UNKNOWN
 
-    class GameState(Enum):
-        FILTERED_INPUT = 0x00
-        IN_BATTLE = 0x01
-        BATTLE_ANIMATION = 0x02
-        # catch mon
-        TALKING = 0x03
-        EXPLORING = 0x04
-        ON_PC = 0x05
-        POKE_CENTER = 0x06
-        MART = 0x07
-        GYM = 0x08
-        START_MENU = 0x09
-        GAME_MENU = 0x0A
-        BATTLE_TEXT = 0x0B
-        FOLLOWING_NPC = 0x0C
-        GAME_STATE_UNKNOWN = 0xFF
+        self.process_game_states()
 
-        SUB_MENU = RedRamMenuValues
+    class GameState(IntEnum):
+        FILTERED_INPUT = 0
+        IN_BATTLE = 1
+        BATTLE_ANIMATION = 2
+        # catch mon
+        TALKING = 3
+        EXPLORING = 4
+        ON_PC = 5
+        POKE_CENTER = 6
+        MART = 7
+        GYM = 8
+        START_MENU = 9
+        GAME_MENU = 10
+        BATTLE_TEXT = 11
+        FOLLOWING_NPC = 12
+        GAME_STATE_UNKNOWN = 115
 
     
     # Order of precedence is important here, we want to check for battle first, then menus
-    def get_game_states(self):
+    def process_game_states(self):
         ORDERED_GAME_STATES = [
             self.battle.get_battle_state,
             self.player.is_following_npc,
@@ -73,7 +69,10 @@ class Game:
             if self.game_state != self.GameState.GAME_STATE_UNKNOWN:
                 return self.game_state
         
-        return self.GameState.EXPLORING
+        self.game_state = self.GameState.EXPLORING
+    
+    def get_game_state(self):
+        return np.array([self.game_state], dtype=np.uint8)
         
 
     def allow_menu_selection(self, input):
@@ -100,13 +99,13 @@ class World:
         self.env = env
     
     def get_game_milestones(self):
-        return [self.env.ram_interface.read_memory(item) for item in GAME_MILESTONES]
+        return np.array([self.env.ram_interface.read_memory(item) for item in GAME_MILESTONES], dtype=np.uint8)
     
     def get_playing_audio_track(self):
         return self.env.ram_interface.read_memory(AUDIO_CURRENT_TRACK_NO_DELAY)
     
     def get_pokemart_options(self):
-        mart = [0] * POKEMART_AVAIL_SIZE
+        mart = np.zeros((POKEMART_AVAIL_SIZE,), dtype=np.uint8)
         for i in range(POKEMART_AVAIL_SIZE):
             item = self.env.ram_interface.read_memory(POKEMART_ITEMS + i)
             if item == 0xFF:
@@ -115,6 +114,8 @@ class World:
             mart[i] = item
 
         return mart
+    
+    # TODO: Need item costs, 0xcf8f wItemPrices isn't valid: http://www.psypokes.com/rby/shopping.php
 
 
 class Battle:
@@ -130,7 +131,7 @@ class Battle:
         return False
 
     def get_battle_state(self):
-        self.in_battle = self.is_in_battle()
+        self.in_battle = self.get_battle_type()
         in_pre_battle = self.is_in_pre_battle()
 
         if not (self.in_battle or in_pre_battle):
@@ -159,17 +160,17 @@ class Battle:
 
         return self.env.GameState.GAME_STATE_UNKNOWN
     
-    def is_in_battle(self):
-        return self.env.ram_interface.read_memory(IN_BATTLE)
+    def get_battle_type(self):
+        return self.env.ram_interface.read_memory(BATTLE_TYPE)
     
     def is_in_pre_battle(self):
         return self.env.ram_interface.read_memory(CURRENT_OPPONENT)
     
-    def get_battle_type(self):
-        return self.env.ram_interface.read_memory(BATTLE_TYPE)
+    def get_special_battle_type(self):
+        return self.env.ram_interface.read_memory(SPECIAL_BATTLE_TYPE)
     
     def get_player_fighting_pokemon_arr(self):
-        if not self.is_in_battle():
+        if not self.get_battle_type():
             return [0x00] * 7
 
         pokemon = self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
@@ -185,7 +186,7 @@ class Battle:
         special_mod =  self.env.ram_interface.read_memory(PLAYERS_POKEMON_SPECIAL_MODIFIER)
         evasion_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_SPECIAL_MODIFIER)
 
-        return [pokemon, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod]
+        return np.array([pokemon, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod], dtype=np.uint8)
     
     def get_player_fighting_pokemon_dict(self):
         player_fighting_pokemon = self.get_player_fighting_pokemon_arr()
@@ -201,14 +202,15 @@ class Battle:
         }
     
     def get_enemy_fighting_pokemon_arr(self):
-        if not self.is_in_battle():
-            return [0x00] * 12
+        if not self.get_battle_type():
+            return [0x00] * 13
         
         party_count = self.env.ram_interface.read_memory(ENEMY_PARTY_COUNT)
         pokemon = self.env.ram_interface.read_memory(ENEMYS_POKEMON)
         level = self.env.ram_interface.read_memory(ENEMYS_POKEMON_LEVEL)
         hp = (self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1])
-        type = [self.env.ram_interface.read_memory(val) for val in ENEMYS_POKEMON_TYPES]
+        type_1 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0])
+        type_2 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
         status = self.env.ram_interface.read_memory(ENEMYS_POKEMON_STATUS)
         attack_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_ATTACK_MODIFIER)
         defense_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_DEFENSE_MODIFIER)
@@ -217,7 +219,7 @@ class Battle:
         special_mod =  self.env.ram_interface.read_memory(ENEMYS_POKEMON_SPECIAL_MODIFIER)
         evasion_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_SPECIAL_MODIFIER)
 
-        return [party_count, pokemon, level, hp, type, status, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod]
+        return np.array([party_count, pokemon, level, hp, type_1, type_2, status, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod], dtype=np.uint8)
 
     def get_enemy_fighting_pokemon_dict(self):
         enemy_fighting_pokemon = self.get_enemy_fighting_pokemon_arr()
@@ -227,19 +229,19 @@ class Battle:
             'pokemon': enemy_fighting_pokemon[1],
             'level': enemy_fighting_pokemon[2],
             'hp': enemy_fighting_pokemon[3],
-            'type': enemy_fighting_pokemon[4],
-            'status': enemy_fighting_pokemon[5],
-            'attack_mod': enemy_fighting_pokemon[6],
-            'defense_mod': enemy_fighting_pokemon[7],
-            'speed_mod': enemy_fighting_pokemon[8],
-            'accuracy_mod': enemy_fighting_pokemon[9],
-            'special_mod': enemy_fighting_pokemon[10],
-            'evasion_mod': enemy_fighting_pokemon[11]
+            'type_1': enemy_fighting_pokemon[4],
+            'type_2': enemy_fighting_pokemon[5],
+            'status': enemy_fighting_pokemon[6],
+            'attack_mod': enemy_fighting_pokemon[7],
+            'defense_mod': enemy_fighting_pokemon[8],
+            'speed_mod': enemy_fighting_pokemon[9],
+            'accuracy_mod': enemy_fighting_pokemon[10],
+            'special_mod': enemy_fighting_pokemon[11],
+            'evasion_mod': enemy_fighting_pokemon[12]
         }
 
-
     def get_battle_turn_info_arr(self):
-        if not self.is_in_battle():
+        if not self.get_battle_type():
             return [0x00] * 3
 
         turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
@@ -251,7 +253,7 @@ class Battle:
         player_selected_move = self.env.ram_interface.read_memory(PLAYER_SELECTED_MOVE)
         enemy_selected_move = self.env.ram_interface.read_memory(ENEMY_SELECTED_MOVE)
 
-        return [self.turns_in_current_battle, player_selected_move, enemy_selected_move]                                                                
+        return np.array([self.turns_in_current_battle, player_selected_move, enemy_selected_move], dtype=np.uint8)                                                              
     
     def get_battle_turn_info_dict(self):
         battle_turn_info = self.get_battle_turn_info_arr()
@@ -261,6 +263,20 @@ class Battle:
             'player_selected_move': battle_turn_info[1],
             'enemy_selected_move': battle_turn_info[2]
         }
+    
+    def get_battles_pokemon_left(self):
+        alive_pokemon = 0
+
+        # Wild mons only have 1 pokemon alive and their status is in diff reg's
+        if self.get_battle_type() == 0x01:
+            return int(self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) != 0 or self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1]) != 0)
+        
+        for i in range(POKEMON_MAX_COUNT):
+            if (self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[0]) != 0 or
+                self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[1]) != 0):
+                alive_pokemon += 1 
+
+        return alive_pokemon
 
 
 class Items:
@@ -278,42 +294,79 @@ class Items:
         return self.env.ram_interface.read_memory(BAG_TOTAL_ITEMS)
 
     def get_bag_item_ids(self):
-        return self._get_items_in_range(BAG_SIZE, BAG_ITEMS_INDEX, ITEMS_OFFSET)
+        return np.array(self._get_items_in_range(BAG_SIZE, BAG_ITEMS_INDEX, ITEMS_OFFSET))
 
     def get_bag_item_quantities(self):
-        return [self.env.ram_interface.read_memory(BAG_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(BAG_SIZE)]
+        return np.array([self.env.ram_interface.read_memory(BAG_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(BAG_SIZE)], dtype=np.uint8)
 
     def get_pc_item_ids(self):
-        return self._get_items_in_range(STORAGE_SIZE, PC_ITEMS_INDEX, ITEMS_OFFSET)
+        return np.array(self._get_items_in_range(STORAGE_SIZE, PC_ITEMS_INDEX, ITEMS_OFFSET))
     
     def get_pc_item_quantities(self):
-        return [self.env.ram_interface.read_memory(PC_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(STORAGE_SIZE)]
+        return np.array([self.env.ram_interface.read_memory(PC_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(STORAGE_SIZE)], dtype=np.uint8)
     
     def get_pc_pokemon_count(self):
         return self.env.ram_interface.read_memory(BOX_POKEMON_COUNT)
     
     def get_pc_pokemon_stored(self):
-        return [(self.env.ram_interface.read_memory(BOX_POKEMON_1 + i * BOX_OFFSET),
-                  self.env.ram_interface.read_memory(BOX_POKEMON_1_LEVEL + i * BOX_OFFSET)) for i in range(BOX_SIZE)]
+        return np.array([(self.env.ram_interface.read_memory(BOX_POKEMON_1 + i * BOX_OFFSET), self.env.ram_interface.read_memory(BOX_POKEMON_1_LEVEL + i * BOX_OFFSET)) for i in range(BOX_SIZE)], dtype=np.uint8)
 
     def get_item_quantity(self):
         # TODO: need to map sub menu state for buy/sell count
         if self.env.game_state != RedRamMenuValues.ITEM_QUANTITY:
-            return 0
+            return np.array([0], dtype=np.float32)
         
-        return self.env.ram_interface.read_memory(ITEM_SELECTION_QUANTITY)
-            
+        return np.array([self.env.ram_interface.read_memory(ITEM_SELECTION_QUANTITY)], dtype=np.float32)
+                
 
 class Map:
     def __init__(self, env):
         self.env = env
 
-    def get_location_pos(self):
-        return (self.env.ram_interface.read_memory(PLAYER_LOCATION_X),
-                self.env.ram_interface.read_memory(PLAYER_LOCATION_Y))
-
-    def get_location_map(self):
+    def get_current_map(self):
         return self.env.ram_interface.read_memory(PLAYER_MAP)
+
+    def get_current_location(self):
+        return self.env.ram_interface.read_memory(PLAYER_LOCATION_X), self.env.ram_interface.read_memory(PLAYER_LOCATION_Y), self.get_current_map()
+    
+    def get_centered_7x7_tiles(self):
+        # Starting addresses for each row
+        starting_addresses = [TILE_COL_0_ROW_0, TILE_COL_0_ROW_1, TILE_COL_0_ROW_2, TILE_COL_0_ROW_3,
+                               TILE_COL_0_ROW_4, TILE_COL_0_ROW_5, TILE_COL_0_ROW_6]
+        screen_size = len(starting_addresses)
+        increment_per_column = 2
+
+        screen = np.zeros((screen_size, screen_size), dtype=np.uint8)
+        for row, start_addr in enumerate(starting_addresses):
+            for col in range(screen_size):
+                address = start_addr + col * increment_per_column
+                
+                screen[row][col] = self.env.ram_interface.read_memory(address)
+
+        return screen
+
+    def get_npc_location_dict(self, skip_moving_npc=True):
+        # Moderate testing show's NPC's are never on screen during map transitions
+        sprites = {}
+        for i, sprite_addr in enumerate(SPRITE_STARTING_ADDRESSES):
+            on_screen = self.env.ram_interface.read_memory(sprite_addr + 0x0002)
+
+            if on_screen == 0xFF:
+                continue
+
+            # Moving sprites can cause complexity, use at discretion with the flag.
+            can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
+            if skip_moving_npc and can_move != 0xFF:
+                continue
+            
+            picture_id = self.env.ram_interface.read_memory(sprite_addr)
+            x_pos = self.env.ram_interface.read_memory(sprite_addr + 0x0105) - 4  # topmost 2x2 tile has value 4), thus the offset
+            y_pos = self.env.ram_interface.read_memory(sprite_addr + 0x0104) - 4  # topmost 2x2 tile has value 4), thus the offset
+            # facing = self.env.ram_interface.read_memory(sprite_addr + 0x0009)
+
+            sprites[(x_pos, y_pos, self.get_current_map())] = picture_id
+            
+        return sprites
 
 
 class Menus:
@@ -393,12 +446,19 @@ class Pokemon:
 
         self.pokemon = ram_interface.read_memory(POKEMON_1 + offset)
         self.level = ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
-        self.type = [ram_interface.read_memory(val + offset) for val in POKEMON_1_TYPES] 
+        self.type_1 = ram_interface.read_memory(POKEMON_1_TYPES[0] + offset)
+        self.type_2 = ram_interface.read_memory(POKEMON_1_TYPES[1] + offset)
         self.hp_total = (ram_interface.read_memory(POKEMON_1_MAX_HP[0] + offset) << 8) + ram_interface.read_memory(POKEMON_1_MAX_HP[1] + offset)
         self.hp_avail = (ram_interface.read_memory(POKEMON_1_CURRENT_HP[0] + offset) << 8) + ram_interface.read_memory(POKEMON_1_CURRENT_HP[1] + offset)
         self.xp = (ram_interface.read_memory(POKEMON_1_EXPERIENCE[0] + offset) << 16) + (ram_interface.read_memory(POKEMON_1_EXPERIENCE[1] + offset) << 8) + ram_interface.read_memory(POKEMON_1_EXPERIENCE[2] + offset)
-        self.moves = [ram_interface.read_memory(val + offset) for val in POKEMON_1_MOVES]
-        self.pp = [ram_interface.read_memory(val + offset) for val in POKEMON_1_PP_MOVES] 
+        self.move_1 = ram_interface.read_memory(POKEMON_1_MOVES[0]+ offset)
+        self.move_2 = ram_interface.read_memory(POKEMON_1_MOVES[1]+ offset)
+        self.move_3 = ram_interface.read_memory(POKEMON_1_MOVES[2]+ offset)
+        self.move_4 = ram_interface.read_memory(POKEMON_1_MOVES[3]+ offset)
+        self.pp_1 = ram_interface.read_memory(POKEMON_1_PP_MOVES[0]+ offset)
+        self.pp_2 = ram_interface.read_memory(POKEMON_1_PP_MOVES[1]+ offset)
+        self.pp_3 = ram_interface.read_memory(POKEMON_1_PP_MOVES[2]+ offset)
+        self.pp_4 = ram_interface.read_memory(POKEMON_1_PP_MOVES[3]+ offset)
         self.attack = (ram_interface.read_memory(POKEMON_1_ATTACK[0] + offset) << 8) + ram_interface.read_memory(POKEMON_1_ATTACK[1] + offset)
         self.defense = (ram_interface.read_memory(POKEMON_1_DEFENSE[0] + offset) << 8) + ram_interface.read_memory(POKEMON_1_DEFENSE[1] + offset)
         self.speed = (ram_interface.read_memory(POKEMON_1_SPEED[0] + offset) << 8) + ram_interface.read_memory(POKEMON_1_SPEED[1] + offset)
@@ -409,12 +469,19 @@ class Pokemon:
         return {
             'pokemon': self.pokemon,
             'level': self.level,
-            'type': self.type,
+            'type_1': self.type_1,
+            'type_2': self.type_2,
             'hp_total': self.hp_total,
             'hp_avail': self.hp_avail,
             'xp': self.xp,
-            'moves': self.moves,
-            'pp': self.pp,
+            'move_1': self.move_1,
+            'move_2': self.move_2,
+            'move_3': self.move_3,
+            'move_4': self.move_4,
+            'pp_1': self.pp_1,
+            'pp_2': self.pp_2,
+            'pp_3': self.pp_3,
+            'pp_4': self.pp_4,
             'attack': self.attack,
             'defense': self.defense,
             'speed': self.speed,
@@ -423,7 +490,7 @@ class Pokemon:
         }
         
     def get_pokemon_data_arr(self):
-        return [self.id, self.level, self.type, self.hp_total, self.hp_avail, self.xp, self.moves, self.pp, self.attack, self.defense, self.speed, self.special, self.health_status]
+        return np.array([self.pokemon, self.level, self.type_1, self.type_2, self.hp_total, self.hp_avail, self.xp, self.move_1, self.move_2, self.move_3, self.move_4, self.pp_1, self.pp_2, self.pp_3, self.pp_4, self.attack, self.defense, self.speed, self.special, self.health_status], dtype=np.uint8)
 
 
 class Player:
@@ -446,10 +513,14 @@ class Player:
         return bit_count
 
     def get_player_lineup_dict(self):
+        lineup = {}
+        for i, pokemon in enumerate(self._get_player_lineup()):
+            lineup["slot: " + str(i)] = pokemon.get_pokemon_data_dict()
+
         return [pokemon.get_pokemon_data_dict() for pokemon in self._get_player_lineup()]
 
     def get_player_lineup_arr(self):
-        return [pokemon.get_pokemon_data_arr() for pokemon in self._get_player_lineup()]
+        return np.array([pokemon.get_pokemon_data_arr() for pokemon in self._get_player_lineup()], dtype=np.uint8)
     
     def is_following_npc(self):
         if self.env.ram_interface.read_memory(FOLLOWING_NPC_FLAG) != 0x00:
@@ -458,7 +529,7 @@ class Player:
         return self.env.GameState.GAME_STATE_UNKNOWN
     
     def get_badges(self):
-        return self.env.ram_interface.read_memory(OBTAINED_BADGES)
+        return np.array([self.env.ram_interface.read_memory(OBTAINED_BADGES)], dtype=np.uint8)
     
     def get_pokedex_seen(self):
         return self._pokedex_bit_count(POKEDEX_SEEN)
@@ -467,11 +538,11 @@ class Player:
         return self._pokedex_bit_count(POKEDEX_OWNED)
     
     def get_player_money(self):
-        # Trigger warning, money is a base16 literal as base 10 numbers
+        # Trigger warning, money is a base16 literal as base 10 numbers, max money 999,999
         money_bytes = [self.env.ram_interface.read_memory(addr) for addr in PLAYER_MONEY]
         money_hex = ''.join([f'{byte:02x}' for byte in money_bytes])
-        money_decimal = int(money_hex, 10)
-        return money_decimal
+        money_int = int(money_hex, 10)
+        return np.array([money_int], dtype=np.float32) 
     
     
 
