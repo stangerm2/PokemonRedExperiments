@@ -1,3 +1,5 @@
+from enum import IntEnum
+
 # Players Fighter
 PLAYER_LOADED_POKEMON = 0xCC2F # Index of fighting mon, stale out battle.
 
@@ -90,4 +92,10 @@ ENEMYS_MULTI_HIT_MOVE_COUNTER = 0xD06F
 ENEMYS_CONFUSION_COUNTER = 0xD070
 ENEMYS_TOXIC_COUNTER = 0xD071
 ENEMYS_DISABLE_COUNTER = (0xD072, 0xD073)
+
+class BattleTypes(IntEnum):
+    WILD_BATTLE = 1,
+    TRAINER_BATTLE = 2,
+    DIED = 255,
+
 

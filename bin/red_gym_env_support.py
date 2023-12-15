@@ -48,13 +48,13 @@ class RedGymEnvSupport:
 
     def save_and_print_info(self, done):
         if self.env.print_rewards:
-            game_debug = get_debug_str(self.env.game)
-
             prog_string = self._construct_progress_string()
             if self.env.debug:
-                print(f'\r{self.map.location_history[-1]}\n\n{game_debug}', end='', flush=True)
-
-            print(f'\r{prog_string}', end='', flush=True)
+                game_debug = get_debug_str(self.env.game)
+                # os.system('clear')
+                print(f'\r\n\naction: {WindowEvent(self.env.gameboy.action_history[-1]).__str__()}\n{self.map.location_history[-1]}\n\n{game_debug}\n\n{prog_string}', end='', flush=True)
+            else:
+                print(f'\r{prog_string}', end='', flush=True)
 
         if self.env.print_rewards and done:
             self._print_final_rewards()

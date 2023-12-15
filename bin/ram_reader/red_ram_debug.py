@@ -47,14 +47,16 @@ def get_world_str(game):
         return f'\n\nmilestones: {milestones}, audio: {audio}, pokemart: {pokemart}'
 
 def get_battle_str(game):
+        in_battle = game.battle.in_battle
+        battle_done = game.battle.battle_done
         battle_type = game.battle.get_battle_type()
-        special_battle = game.battle.get_special_battle_type()
         enemys_left = game.battle.get_battles_pokemon_left()
+        win_battle = game.battle.win_battle()
         player_stats = game.battle.get_player_fighting_pokemon_dict()
         enemy_stats = _pokemon_dict_pretty_str([game.battle.get_enemy_fighting_pokemon_dict()])
         turns = game.battle.get_battle_turn_info_dict()
 
-        return f'\n\nin_battle: {battle_type}, battle_type: {special_battle}, enemys_left: {enemys_left}\nplayer_stats: {player_stats} \nenemy_stats: {enemy_stats} \nturns: {turns}'
+        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nplayer_stats: {player_stats} \nenemy_stats: {enemy_stats} \nturns: {turns}'
 
 def get_map_str(game):
         location = game.map.get_current_location()
@@ -64,7 +66,7 @@ def get_map_str(game):
         return f'\n\nlocation: {location}\ntiles:\n{tiles}\nnpc: {npc}'
 
 def get_debug_str(game):
-        game_state = f'{game.get_game_state()}\n'
+        game_state = f'{game.game_state.name}\n'
         game_state += f'Menu Allowed: {game.allow_menu_selection(WindowEvent.PRESS_BUTTON_A)}\n\n'
 
         game_state += get_player_str(game)

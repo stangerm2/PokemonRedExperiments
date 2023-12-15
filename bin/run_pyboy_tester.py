@@ -64,14 +64,14 @@ while not pyboy.tick():
         frame = 0
 
 
-        if os.path.exists("save"):
-                # Save to file
-                file_like_object = open("pokemon_ai_squirt_poke_balls.state", "wb")
-                pyboy.save_state(file_like_object)
+        #if os.path.exists("save"):
+        #        # Save to file
+        #        file_like_object = open("pokemon_ai_squirt_poke_balls.state", "wb")
+        #        pyboy.save_state(file_like_object)
 
-        #game.process_game_states()
+        game.process_game_states()
 
-        clear_screen()
+        #clear_screen()
         sys.stdout.write(f'\r{get_debug_str(game)}')
         sys.stdout.flush()
 

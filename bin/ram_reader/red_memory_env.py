@@ -35,6 +35,8 @@ SS_ANNE_FLAG = 0xD803
 MEWTWO_APPEAR_FLAG = 0xD5C0  # bit 1
 MEWTWO_CATCH_FLAG = 0xD85F  # Needs D5C0 bit 1 clear, bit 2 clear
 
+POKECENTER_VISITED = 0xD719
+
 # Game Milestones
 GAME_MILESTONES = [
     TOWN_MAP_FLAG,

@@ -7,6 +7,8 @@ from red_gym_env_support import RedGymEnvSupport, RedGymGlobalMemory
 from red_pyboy_manager import PyBoyManager, pyboy_init_actions
 from red_gym_screen import RedGymScreen
 from red_gym_player import RedGymPlayer
+from red_gym_map import RedGymMap
+from red_gym_battle import RedGymBattle
 from red_gym_map import *
 from red_env_constants import *
 
@@ -15,11 +17,11 @@ from ram_reader.red_ram_api import *
 def initialize_observation_space(extra_buttons):
     return spaces.Dict(
         {
-            # Game View:
+''            # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
             "action": spaces.MultiDiscrete([len(pyboy_init_actions(extra_buttons)) + 1]),
-            "p2p": spaces.MultiBinary(100),
+            #"p2p": spaces.MultiBinary(150),
 
             # Game:
             "game_state": spaces.Discrete(MENU_TOTAL_SIZE + 1),
@@ -48,7 +50,7 @@ def initialize_observation_space(extra_buttons):
             "enemies_left": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             "player_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_PLAYER_ATTRIBUTES,), dtype=np.float32),
             "enemy_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_ENEMIES_ATTRIBUTES,), dtype=np.float32),
-            "turn_info": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_TURN_ATTRIBUTES,), dtype=np.float32),
+            "turn_info": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_TURN_ATTRIBUTES,), dtype=np.float32),''
         }
     )
 
@@ -98,7 +100,9 @@ class RedGymEnv(Env):
 
     def _reset_env_state(self):
         self.support = RedGymEnvSupport(self)
+        self.map = RedGymMap(self)
         self.player = RedGymPlayer(self)
+        self.battle = RedGymBattle(self)
         self.game = Game(self.gameboy.pyboy)
 
         self.gameboy.reload_game()
@@ -115,10 +119,10 @@ class RedGymEnv(Env):
 
         self._run_post_action_steps()
 
-        self._update_rewards(action)
         self._append_agent_stats(action)
 
         observation = self._get_observation()
+        self._update_rewards(action)
 
         step_limit_reached = self.get_check_if_done()
         self.support.save_and_print_info(step_limit_reached)
@@ -133,16 +137,24 @@ class RedGymEnv(Env):
 
     def _run_post_action_steps(self):
         self.support.map.save_post_action_pos()
+        self.battle.inc_move_count()
 
     def get_check_if_done(self):
         return self.support.check_if_done()
 
     def _append_agent_stats(self, action):
+        badges = self.game.player.get_badges()
+
         self.agent_stats.append({
             'reward': self.total_reward,
             # 'last_action': action,
             'discovered': self.support.map.tester.steps_discovered,
-            'p2p_found': self.support.map.tester.p2p_found,
+            'badges' : badges[0],
+            'wild_mon_killed': self.battle.wild_pokemon_killed,
+            'trainer_mon_killed': self.battle.trainer_pokemon_killed,
+            'gym_mon_killed': self.battle.gym_pokemon_killed,
+            'died': self.battle.died,
+            'heal': len(self.map.pokecenter_history) - 1,
         })
 
     def _get_observation(self):
@@ -153,7 +165,7 @@ class RedGymEnv(Env):
             "screen": self.support.map.screen,
             "visited": self.support.map.visited,
             "action": self.gameboy.action_history,
-            "p2p" : self.support.map.tester.p2p_obs,
+            #"p2p" : self.support.map.tester.p2p_obs,
 
             # Game:
             "game_state": self.game.get_game_state(),
@@ -190,7 +202,11 @@ class RedGymEnv(Env):
     def _update_rewards(self, action):
         state_scores = {
             'pallet_town_explorer': self.support.map.tester.pallet_town_explorer_reward(),
-            'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
+            # 'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
+            #'explore': self.support.map.get_exploration_reward(),
+            #'battle': self.battle.get_battle_reward(),
+            #'badges': self.player.get_badge_reward(),
+            #'heal' : self.support.map.get_pokecenter_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward

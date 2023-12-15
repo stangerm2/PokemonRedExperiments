@@ -114,11 +114,8 @@ class World:
             mart[i] = item
 
         return mart
-        
+    
     # TODO: Need item costs, 0xcf8f wItemPrices isn't valid: http://www.psypokes.com/rby/shopping.php
-
-    def get_pokecenter_id(self):
-        return self.env.ram_interface.read_memory(POKECENTER_VISITED)
 
 
 class Battle:
@@ -127,7 +124,6 @@ class Battle:
         self.in_battle = False
         self.turns_in_current_battle = 0
         self.last_turn_count = 0
-        self.battle_done = False
 
     def _in_battle_state(self):
         if self.env.game_state in BATTLE_MENU_STATES or self.env.game_state == self.env.GameState.BATTLE_TEXT:
@@ -135,24 +131,13 @@ class Battle:
         return False
 
     def get_battle_state(self):
-        battle_type = self.get_battle_type()
+        self.in_battle = self.get_battle_type()
         in_pre_battle = self.is_in_pre_battle()
 
-        if not (battle_type or in_pre_battle):
+        if not (self.in_battle or in_pre_battle):
             self.turns_in_current_battle = 0
             self.last_turn_count = 0
-            self.in_battle = False
-            self.battle_done = False
             return self.env.GameState.GAME_STATE_UNKNOWN
-        
-        # TODO: Switch mon is battle, broken with switch/stats
-        
-        self.in_battle = True
-
-        turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
-        if turns_in_current_battle != self.last_turn_count:
-            self.turns_in_current_battle += 1 
-            self.last_turn_count = turns_in_current_battle
 
         cursor_location, state = self.env.menus.get_item_menu_context()
         game_state = TEXT_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamMenuValues.UNKNOWN_MENU)
@@ -172,7 +157,7 @@ class Battle:
             return game_state
 
         # when text is on screen but menu reg's are clear, we can't be in a menu
-        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not battle_type:
+        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not self.in_battle:
             return self.env.GameState.BATTLE_ANIMATION
         elif game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO:
             return game_state
@@ -188,15 +173,6 @@ class Battle:
 
 
         return self.env.GameState.GAME_STATE_UNKNOWN
-    
-    def win_battle(self):
-        # You can only win once per battle, so don't call w/o being ready to process a win otherwise you'll lose capturing it for the battle cycle
-        if (self.in_battle == False or self.battle_done == True or
-            self.get_battles_pokemon_left() != 0 or self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE) == 0):
-            return False
-        
-        self.battle_done = True
-        return True
     
     def get_battle_type(self):
         return self.env.ram_interface.read_memory(BATTLE_TYPE)
@@ -282,6 +258,11 @@ class Battle:
         if not self.get_battle_type():
             return [0x00] * 3
 
+        turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
+        if turns_in_current_battle != self.last_turn_count:
+            self.turns_in_current_battle += 1
+            self.last_turn_count = turns_in_current_battle
+
         # turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
         player_selected_move = self.env.ram_interface.read_memory(PLAYER_SELECTED_MOVE)
         enemy_selected_move = self.env.ram_interface.read_memory(ENEMY_SELECTED_MOVE)
@@ -300,16 +281,13 @@ class Battle:
     def get_battles_pokemon_left(self):
         alive_pokemon = 0
 
-        if not self.in_battle:
-            return 0 
-
         # Wild mons only have 1 pokemon alive and their status is in diff reg's
-        if self.get_battle_type() == 1: # TODO: Fix enum
+        if self.get_battle_type() == 0x01:
             return int(self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) != 0 or self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1]) != 0)
         
         for i in range(POKEMON_MAX_COUNT):
-            if (self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[0] + ENEMY_TRAINER_POKEMON_HP_OFFSET * i) != 0 or
-                self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[1] + ENEMY_TRAINER_POKEMON_HP_OFFSET * i) != 0):
+            if (self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[0]) != 0 or
+                self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[1]) != 0):
                 alive_pokemon += 1 
 
         return alive_pokemon
@@ -367,8 +345,8 @@ class Map:
     
     def get_centered_7x7_tiles(self):
         # Starting addresses for each row
-        starting_addresses = [TILE_COL_1_ROW_1, TILE_COL_1_ROW_2, TILE_COL_1_ROW_3, TILE_COL_1_ROW_4,
-                               TILE_COL_1_ROW_5, TILE_COL_1_ROW_6, TILE_COL_1_ROW_7]
+        starting_addresses = [TILE_COL_0_ROW_0, TILE_COL_0_ROW_1, TILE_COL_0_ROW_2, TILE_COL_0_ROW_3,
+                               TILE_COL_0_ROW_4, TILE_COL_0_ROW_5, TILE_COL_0_ROW_6]
         screen_size = len(starting_addresses)
         increment_per_column = 2
 
@@ -380,19 +358,6 @@ class Map:
                 screen[row][col] = self.env.ram_interface.read_memory(address)
 
         return screen
-    
-    def get_centered_step_count_7x7_screen(self):
-        collision_ptr_1, collision_ptr_2 = self.env.ram_interface.read_memory(TILE_COLLISION_PTR_1), self.env.ram_interface.read_memory(TILE_COLLISION_PTR_2)
-        screen = self.get_centered_7x7_tiles()
-        for row in range(screen.shape[0]):
-            for col in range(screen.shape[1]):
-                if screen[row][col] in WALKABLE_TILES.get((collision_ptr_1, collision_ptr_2), []):
-                    screen[row][col] = 0
-                else:
-                    screen[row][col] = 1
-
-        return screen
-    
 
     def get_npc_location_dict(self, skip_moving_npc=True):
         # Moderate testing show's NPC's are never on screen during map transitions
@@ -403,10 +368,10 @@ class Map:
             if on_screen == 0xFF:
                 continue
 
-            # Moving sprites can cause complexity, use at discretion
-            #can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
-            #if skip_moving_npc and can_move != 0xFF:
-            #    continue
+            # Moving sprites can cause complexity, use at discretion with the flag.
+            can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
+            if skip_moving_npc and can_move != 0xFF:
+                continue
             
             picture_id = self.env.ram_interface.read_memory(sprite_addr)
             x_pos = self.env.ram_interface.read_memory(sprite_addr + 0x0105) - 4  # topmost 2x2 tile has value 4), thus the offset

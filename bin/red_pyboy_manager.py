@@ -116,15 +116,15 @@ class PyBoyManager:
             moving_animation = self.get_memory_value(0xC108) != 0 or self.get_memory_value(0xC107) != 0
 
             if animation_started and moving_animation == 0:
-                break
+                continue
 
             # Release the key once the animation starts, thus it should only be possible to advance 1 position.
             if moving_animation > 0:
                 animation_started = True
                 self.pyboy.send_input(termination_action)
 
-        if self.env.debug:
-            print(f'dpad wait frames: {count}')
+        #if self.env.debug:
+        #    print(f'dpad wait frames: {count}')
 
         # We never saw movement anim so we never sent term, send it now
         if not animation_started:
@@ -142,9 +142,9 @@ class PyBoyManager:
 
         self._update_action_obs(action)
 
-        if self.env.debug:
-            print(f'\n\naction: {WindowEvent(action).__str__()}')
-            print(self.action_history)
+        #if self.env.debug:
+        #    print(f'\n\naction: {WindowEvent(action).__str__()}')
+        #    print(self.action_history)
 
         if termination_action == WindowEvent.PASS:
             print(f'ignoring command')

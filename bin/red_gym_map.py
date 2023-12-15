@@ -19,6 +19,8 @@ class RedGymMap:
         self.moved_location = False  # indicates if the player moved 1 or more spot
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
+        self.steps_discovered = 0
+        self.pokecenter_history = {0 : True}
 
         self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
@@ -90,6 +92,10 @@ class RedGymMap:
         else:
             self.screen[y][x] = self.env.memory.byte_to_float_norm[int(self.screen[y][x])]
 
+    def _clear_map_obs(self):
+        self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
+        self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
+
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
@@ -142,8 +148,6 @@ class RedGymMap:
         debug_str += f"Start location: {self.x_pos_org, self.y_pos_org, self.n_map_org} \n"
         debug_str += f"New location: {new_x_pos, new_y_pos, new_map_n} \n"
         debug_str += f"\n"
-        debug_str += f"{self.tester.p2p_obs}"
-        debug_str += f"\n"
         debug_str += f"{self.screen}"
         debug_str += f"\n"
         debug_str += f"{self.visited}"
@@ -151,15 +155,39 @@ class RedGymMap:
         if len(self.location_history) > 10:
             self.location_history.popleft()
         self.location_history.append(debug_str)
-        
+
+    def get_pokecenter_reward(self):
+        audio_id = self.env.game.world.get_playing_audio_track()
+        if audio_id != 0xBD:
+            return 0  # we aren't in a mart or pokecenter
+
+        pokecenter_id = self.env.game.world.get_pokecenter_id()
+        if pokecenter_id != 1 and pokecenter_id in self.pokecenter_history:
+            return 0.2 # 2x better than battle steady state, encourage being in pokecenter
+                
+        self.pokecenter_history[pokecenter_id] = True
+        return 100
+
+    def get_exploration_reward(self):
+        x_pos, y_pos, map_n = self.env.game.map.get_current_location()
+        if not self.moved_location:
+            return 0
+        elif (x_pos, y_pos, map_n) in self.visited_pos:
+            return 0.01
+        else:
+            self.steps_discovered += 1
+            return 1        
 
     def update_map_obs(self):
-        x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
+        if self.env.game.battle.in_battle:
+            self._clear_map_obs()  # Don't show the map while in battle b/c human can't see map when in battle
+        else:
+            x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
 
-        # Order matters here
-        self._update_tile_obs()
-        self._update_visited_obs(x_pos_new, y_pos_new, n_map_new)
-        self._update_npc_and_norm_obs(x_pos_new, y_pos_new, n_map_new)  # Overwrites screen with npc's locations
-        self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
+            # Order matters here
+            self._update_tile_obs()
+            self._update_visited_obs(x_pos_new, y_pos_new, n_map_new)
+            self._update_npc_and_norm_obs(x_pos_new, y_pos_new, n_map_new)  # Overwrites screen with npc's locations
+            self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
 
         self.update_map_stats()

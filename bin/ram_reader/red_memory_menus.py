@@ -1,4 +1,3 @@
-from enum import Enum
 from enum import IntEnum
 
 # Text Interactions
@@ -69,6 +68,8 @@ class RedRamMenuKeys:
     BATTLE_MENU_RUN = (0xEF, 0xC4)
     MENU_YES = (0x4F, 0xC4)
     MENU_NO = (0x77, 0xC4)
+
+    MENU_NO_HACK = (0x69, 0xC4)
 
 
 class RedRamMenuValues(IntEnum):
@@ -243,6 +244,7 @@ TEXT_MENU_CURSOR_LOCATIONS = {
 
     RedRamMenuKeys.MENU_YES: RedRamMenuValues.MENU_YES,
     RedRamMenuKeys.MENU_NO: RedRamMenuValues.MENU_NO,
+    RedRamMenuKeys.MENU_NO_HACK: RedRamMenuValues.MENU_NO
 }
 
 # The count when buying/selling items

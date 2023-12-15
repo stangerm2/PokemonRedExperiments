@@ -176,4 +176,54 @@ SPRITE_STARTING_ADDRESSES = [
     SPRITE_01_PICTURE_ID, SPRITE_02_PICTURE_ID, SPRITE_03_PICTURE_ID, SPRITE_04_PICTURE_ID, SPRITE_05_PICTURE_ID, SPRITE_06_PICTURE_ID,  SPRITE_07_PICTURE_ID,  SPRITE_08_PICTURE_ID,  SPRITE_09_PICTURE_ID,  SPRITE_0A_PICTURE_ID,  SPRITE_0B_PICTURE_ID,  SPRITE_0C_PICTURE_ID,  SPRITE_0D_PICTURE_ID,  SPRITE_0E_PICTURE_ID,  SPRITE_0F_PICTURE_ID
 ]
 
-# Following NPC
+ordered_locations = [
+    # Route 1, Viridian City, back to Pallet Town (not implemented yet)
+    # Route 2
+    # Viridian Forest, Pewter City, Pewter Gym
+    # Route 3
+{'seq': 1, 'id': '0', 'name': 'Pallet Town', 'coordinates': [64, 318], 'tileSize': [20, 18]},
+{'seq': 2, 'id': '12', 'name': 'Route 1', 'coordinates': [64, 282], 'tileSize': [20, 36]},
+{'seq': 3, 'id': '1', 'name': 'Viridian City', 'coordinates': [54, 246], 'tileSize': [40, 36]},
+{'seq': 4, 'id': '41', 'name': 'Pokemon Center (Viridian City)', 'coordinates': [95, 274], 'tileSize': [14, 8]},
+{'seq': 5, 'id': '13', 'name': 'Route 2', 'coordinates': [64, 174], 'tileSize': [20, 72]},
+{'seq': 6, 'id': '51', 'name': 'Viridian Forest', 'coordinates': [88, 188], 'tileSize': [34, 48]},
+{'seq': 7, 'id': '2', 'name': 'Pewter City', 'coordinates': [54, 138], 'tileSize': [40, 36]},
+{'seq': 8, 'id': '58', 'name': 'Pokecenter', 'coordinates': [39, 170], 'tileSize': [14, 8]},
+{'seq': 9, 'id': '53', 'name': 'Museum F2', 'coordinates': [57, 122], 'tileSize': [14, 8]},
+{'seq': 10, 'id': '14', 'name': 'Route 3', 'coordinates': [94, 146], 'tileSize': [70, 18]},
+{'seq': 11, 'id': '59', 'name': 'Mt Moon Route 3', 'coordinates': [147, 92], 'tileSize': [40, 36]},
+{'seq': 12, 'id': '64', 'name': 'Pokemon Center', 'coordinates': [265, 104], 'tileSize': [14, 8]},
+{'seq': 13, 'id': '3', 'name': 'Cerulean City', 'coordinates': [234, 120], 'tileSize': [40, 36]},
+{'seq': 14, 'id': '61', 'name': 'Mt Moon B2F', 'coordinates': [147, 26], 'tileSize': [40, 36]},
+{'seq': 15, 'id': '62', 'name': 'House Breakin v1', 'coordinates': [280, 104], 'tileSize': [8, 8]},
+{'seq': 16, 'id': '4', 'name': 'Lavender Town', 'coordinates': [334, 200], 'tileSize': [20, 18]},
+{'seq': 17, 'id': '5', 'name': 'Vermilion City', 'coordinates': [234, 264], 'tileSize': [40, 36]},
+{'seq': 18, 'id': '54', 'name': 'Pewter Gym', 'coordinates': [43, 145], 'tileSize': [10, 15]},
+{'seq': 19, 'id': '57', 'name': 'Trainer House', 'coordinates': [55, 175], 'tileSize': [8, 8]},
+{'seq': 20, 'id': '24', 'name': 'Route 13', 'coordinates': [294, 326], 'tileSize': [60, 18]},
+{'seq': 21, 'id': '25', 'name': 'Route 14', 'coordinates': [274, 326], 'tileSize': [20, 54]},
+{'seq': 22, 'id': '88', 'name': 'Bills Lab', 'coordinates': [307, 76], 'tileSize': [8, 8]},
+{'seq': 23, 'id': '6', 'name': 'Celadon City', 'coordinates': [164, 192], 'tileSize': [50, 36]},
+{'seq': 24, 'id': '9', 'name': 'Indigo Plateau', 'coordinates': [14, 84], 'tileSize': [20, 18]},
+{'seq': 25, 'id': '10', 'name': 'Saffrdon City', 'coordinates': [234, 192], 'tileSize': [40, 36]},
+{'seq': 26, 'id': '60', 'name': 'Mt Moon B1F', 'coordinates': [147, 63], 'tileSize': [28, 28]},
+{'seq': 27, 'id': '21', 'name': 'Route 10', 'coordinates': [334, 128], 'tileSize': [20, 72]},
+{'seq': 28, 'id': '92', 'name': 'Vermilion Gym', 'coordinates': [214, 282], 'tileSize': [10, 18]},
+{'seq': 29, 'id': '6', 'name': 'Celadon City', 'coordinates': [164, 192], 'tileSize': [50, 36]},
+{'seq': 30, 'id': '5', 'name': 'Vermilion City', 'coordinates': [234, 264], 'tileSize': [40, 36]},
+{'seq': 32, 'id': '8', 'name': 'Cinnabar island', 'coordinates': [64, 426], 'tileSize': [20, 18]},
+{'seq': 33, 'id': '7', 'name': 'Fuchsia City', 'coordinates': [174, 354], 'tileSize': [40, 36]},
+{'seq': 34, 'id': '70', 'name': 'Underground Entrance', 'coordinates': [265, 157], 'tileSize': [8, 8]},
+{'seq': 35, 'id': '67', 'name': 'Pokemart', 'coordinates': [225, 147], 'tileSize': [8, 8]},
+{'seq': 36, 'id': '70', 'name': 'Underground Entrance', 'coordinates': [265, 157], 'tileSize': [8, 8]},
+{'seq': 37, 'id': '4', 'name': 'Lavender Town', 'coordinates': [334, 200], 'tileSize': [20, 18]},
+{'seq': 38, 'id': '19', 'name': 'Route 8', 'coordinates': [274, 200], 'tileSize': [60, 18]},
+{'seq': 39, 'id': '10', 'name': 'Saffrdon City', 'coordinates': [234, 192], 'tileSize': [40, 36]},
+{'seq': 40, 'id': '16', 'name': 'Route 5', 'coordinates': [244, 156], 'tileSize': [20, 36]},
+{'seq': 41, 'id': '17', 'name': 'Route 6', 'coordinates': [244, 228], 'tileSize': [20, 36]},
+{'seq': 42, 'id': '18', 'name': 'Route 7', 'coordinates': [214, 200], 'tileSize': [20, 18]},
+{'seq': 43, 'id': '19', 'name': 'Route 8', 'coordinates': [274, 200], 'tileSize': [60, 18]},
+{'seq': 44, 'id': '20', 'name': 'Route 9', 'coordinates': [274, 128], 'tileSize': [60, 18]},
+{'seq': 45, 'id': '21', 'name': 'Route 10', 'coordinates': [334, 128], 'tileSize': [20, 72]},
+{'seq': 46, 'id': '22', 'name': 'Route 11', 'coordinates': [274, 272], 'tileSize': [60, 18]},
+]

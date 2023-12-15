@@ -13,7 +13,7 @@ DISCOVERY_POINTS = [
 
 MAX_DISCOVERY = len(DISCOVERY_POINTS)
 
-OBS_SIZE = 100
+OBS_SIZE = 150
 
 class RedGymObsTester:
     def __init__(self, env):
@@ -34,7 +34,7 @@ class RedGymObsTester:
         if (DISCOVERY_POINTS[self.discovery_index][0] == x_pos and
                 DISCOVERY_POINTS[self.discovery_index][1] == y_pos and
                 DISCOVERY_POINTS[self.discovery_index][2] == map_n):
-            reward = 100
+            reward = 100 + self.p2p_found
             self.p2p_found += 1
 
             if self.count_obs < OBS_SIZE:
