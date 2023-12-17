@@ -25,17 +25,12 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space):
-        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim=1)
+    def __init__(self, observation_space, features_dim=64):
+        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
-        # CNN for 'screen' and 'visited'
-        self.screen_cnn = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Flatten()
-        )
-        self.visited_cnn = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
+        # Define CNN architecture for spatial inputs
+        self.cnn = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
@@ -49,25 +44,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         total_embedding_dim = 8 + 8  # Sum of embedding dimensions
         total_features_dim = 2 * cnn_output_dim + total_embedding_dim
 
-        # Fully connected layers for output
-        self.fc_layers = nn.Sequential(
-            nn.Linear(total_features_dim, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, self.features_dim)
+        # Output layer to combine features
+        self.fc_combined = nn.Sequential(
+            nn.Linear(3232, features_dim),  # Adjust input size
+            nn.ReLU()
         )
 
     def forward(self, observations):
-        # Process 'screen' and 'visited' through CNN
-        screen_features = self.screen_cnn(observations["screen"].unsqueeze(1))  # Add channel dimension
-        visited_features = self.visited_cnn(observations["visited"].unsqueeze(1))  # Add channel dimension
+        batch_size = observations["screen"].size(0)  # Get dynamic batch size from screen
+
+        screen = observations["screen"].unsqueeze(1)  # Normalize and add channel dimension
+        visited = observations["visited"].unsqueeze(1)
+
+        # Apply CNN to spatial inputs
+        screen_features = self.cnn(screen)
+        visited_features = self.cnn(visited)
 
         # Embeddings for discrete values
-        action_features = self.action_embedding(observations["action"].long()).view(-1, 8)
-        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(-1, 8)
+        # Explicitly use batch_size for reshaping
+        action_features = self.action_embedding(observations["action"].long()).view(batch_size, -1)
+        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(batch_size, -1)
 
-        # Concatenate all features
+        # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
             screen_features, 
             visited_features, 
@@ -75,9 +73,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             game_state_features
         ], dim=1)
 
-        # Final processing through fully connected layers
-        return self.fc_layers(combined_features)
-
+        # Ensure the input size to fc_combined matches the concatenated features size
+        return self.fc_combined(combined_features)
 
 
 def make_env(thread_id, env_conf, seed=0):
@@ -163,7 +160,7 @@ if __name__ == '__main__':
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
         #                   "features_extractor_kwargs": {"features_dim": 64}},
         model = PPO("MultiInputPolicy", env, 
-                    verbose=1, n_steps=2048 // 8, batch_size=128, n_epochs=3, gamma=0.998, policy_kwargs={"features_extractor_class": CustomFeatureExtractor},
+                    verbose=1, n_steps=2048 // 8, batch_size=128, n_epochs=3, gamma=0.998,  policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)

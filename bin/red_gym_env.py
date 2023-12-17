@@ -54,11 +54,11 @@ def initialize_observation_space(extra_buttons):
             # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
-            "action": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+            "action": spaces.Discrete(7),
             #"p2p": spaces.MultiBinary(150),
 
             # Game:
-            "game_state": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+            "game_state": spaces.Discrete(117),
         }
     )
 
