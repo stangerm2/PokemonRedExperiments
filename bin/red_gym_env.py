@@ -13,11 +13,7 @@ from red_gym_map import *
 from red_env_constants import *
 
 from ram_reader.red_ram_api import *
-
-def initialize_observation_space(extra_buttons):
-    return spaces.Dict(
-        {
-''            # Game View:
+'''            # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
             "action": spaces.MultiDiscrete([len(pyboy_init_actions(extra_buttons)) + 1]),
@@ -50,9 +46,48 @@ def initialize_observation_space(extra_buttons):
             "enemies_left": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             "player_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_PLAYER_ATTRIBUTES,), dtype=np.float32),
             "enemy_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_ENEMIES_ATTRIBUTES,), dtype=np.float32),
-            "turn_info": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_TURN_ATTRIBUTES,), dtype=np.float32),''
+            "turn_info": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_TURN_ATTRIBUTES,), dtype=np.float32),'''
+
+def initialize_observation_space(extra_buttons):
+    return spaces.Dict(
+        {
+            # Game View:
+            "screen": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.float32),
+            "visited": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
+            "action": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+            #"p2p": spaces.MultiBinary(150),
+
+            # Game:
+            "game_state": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
         }
     )
+
+'''            "move_allowed": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.uint8),
+
+            # Player:
+            "pokemon_roster": spaces.Box(low=0, high=255, shape=(6, 20), dtype=np.uint8),
+            "badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+
+            # Items
+            "bag_ids": spaces.Box(low=0, high=255, shape=(20,), dtype=np.uint8),
+            "bag_quan": spaces.Box(low=0, high=255, shape=(20,), dtype=np.uint8),
+            "pc_item_ids": spaces.Box(low=0, high=255, shape=(50,), dtype=np.uint8),
+            "pc_item_quan": spaces.Box(low=0, high=255, shape=(50,), dtype=np.uint8),
+            "pc_pokemon": spaces.Box(low=0, high=255, shape=(20, 2), dtype=np.uint8), # 2 = Pokemon ID & Level
+            "item_selection_quan": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8), # Quantity of item selected (to buy/sell), 0-99
+
+            # World
+            "milestones": spaces.Box(low=0, high=255, shape=(9,), dtype=np.uint8),  # TODO: Import better milestone list
+            "audio": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
+            "pokemart_items": spaces.Box(low=0, high=255, shape=(10,), dtype=np.uint8),
+
+            # Battle
+            "battle_type": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
+            "enemies_left": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
+            "player_stats": spaces.Box(low=0, high=255, shape=(7,), dtype=np.uint8),
+            "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
+            "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),'''
+
 
 
 class RedGymEnv(Env):
@@ -149,12 +184,13 @@ class RedGymEnv(Env):
             'reward': self.total_reward,
             # 'last_action': action,
             'discovered': self.support.map.tester.steps_discovered,
-            'badges' : badges[0],
-            'wild_mon_killed': self.battle.wild_pokemon_killed,
-            'trainer_mon_killed': self.battle.trainer_pokemon_killed,
-            'gym_mon_killed': self.battle.gym_pokemon_killed,
-            'died': self.battle.died,
-            'heal': len(self.map.pokecenter_history) - 1,
+            'collisions': self.support.map.tester.collisions,
+            #'badges' : badges[0],
+            #'wild_mon_killed': self.battle.wild_pokemon_killed,
+            #'trainer_mon_killed': self.battle.trainer_pokemon_killed,
+            #'gym_mon_killed': self.battle.gym_pokemon_killed,
+            #'died': self.battle.died,
+            #'heal': len(self.map.pokecenter_history) - 1,
         })
 
     def _get_observation(self):
@@ -169,35 +205,35 @@ class RedGymEnv(Env):
 
             # Game:
             "game_state": self.game.get_game_state(),
-            "move_allowed": True, # TODO: Need's integration w/ API
-
-            # Player:
-            "pokemon_roster": self.support.normalize_np_array(self.game.player.get_player_lineup_arr()),
-            "money": self.game.player.get_player_money() / MAX_MONEY if MAX_MONEY != 0 else np.array([0], dtype=np.float32),
-            "badges": np.unpackbits(self.game.player.get_badges())[-4:],
-
-            # Items
-            "bag_ids": self.support.normalize_np_array(self.game.items.get_bag_item_ids()),
-            "bag_quan": self.support.normalize_np_array(self.game.items.get_bag_item_quantities()),
-            "pc_item_ids": self.support.normalize_np_array(self.game.items.get_pc_item_ids()),
-            "pc_item_quan": self.support.normalize_np_array(self.game.items.get_pc_item_quantities()),
-            "pc_pokemon": self.support.normalize_np_array(self.game.items.get_pc_pokemon_stored()),
-            "item_selection_quan": self.support.normalize_np_array(self.game.items.get_item_quantity()),
-            
-            # World
-            "milestones": self.support.normalize_np_array(self.game.world.get_game_milestones()),
-            "audio": np.array([self.memory.byte_to_float_norm[self.game.world.get_playing_audio_track()]], dtype=np.float32),
-            "pokemart_items": self.support.normalize_np_array(self.game.world.get_pokemart_options()),
-
-            # Battle
-            "battle_type": np.array([self.memory.byte_to_float_norm[self.game.battle.get_battle_type()]], dtype=np.float32),
-            "enemies_left": np.array([self.memory.byte_to_float_norm[self.game.battle.get_battles_pokemon_left()]], dtype=np.float32),
-            "player_stats": self.support.normalize_np_array(self.game.battle.get_player_fighting_pokemon_arr()),
-            "enemy_stats": self.support.normalize_np_array(self.game.battle.get_enemy_fighting_pokemon_arr()),
-            "turn_info": self.support.normalize_np_array(self.game.battle.get_battle_turn_info_arr()),
         }
 
         return observation
+    
+    '''            "move_allowed": np.array([1], dtype=np.uint8), # TODO: Need's integration w/ API
+
+            # Player:
+            "pokemon_roster": self.game.player.get_player_lineup_arr(),
+            "badges": self.game.player.get_badges(),
+
+            # Items
+            "bag_ids": self.game.items.get_bag_item_ids(),
+            "bag_quan": self.game.items.get_bag_item_quantities(),
+            "pc_item_ids": self.game.items.get_pc_item_ids(),
+            "pc_item_quan": self.game.items.get_pc_item_quantities(),
+            "pc_pokemon": self.game.items.get_pc_pokemon_stored(),
+            "item_selection_quan": self.game.items.get_item_quantity(),
+            
+            # World
+            "milestones": self.game.world.get_game_milestones(),
+            "audio": np.array([self.game.world.get_playing_audio_track()], dtype=np.uint8),
+            "pokemart_items": self.game.world.get_pokemart_options(),
+
+            # Battle
+            "battle_type": np.array([self.game.battle.get_battle_type()], dtype=np.uint8),
+            "enemies_left": np.array([self.game.battle.get_battles_pokemon_left()], dtype=np.uint8),
+            "player_stats": self.game.battle.get_player_fighting_pokemon_arr(),
+            "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
+            "turn_info": self.game.battle.get_battle_turn_info_arr(),'''
 
     def _update_rewards(self, action):
         state_scores = {

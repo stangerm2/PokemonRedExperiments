@@ -26,6 +26,7 @@ class RedGymObsTester:
         self.p2p_obs = np.zeros((OBS_SIZE,), dtype=np.uint8)  # TODO: does this help in IDing the p2p reward
         self.count_obs = 0
         self.steps_discovered = 0
+        self.collisions = 0
 
     def pallet_town_point_nav(self):
         x_pos, y_pos, map_n = self.env.env.game.map.get_current_location()
@@ -57,6 +58,9 @@ class RedGymObsTester:
         if map_n == MAP_VALUE_PALLET_TOWN:
             reward = -.5
         elif not self.env.moved_location:
+            if not (self.env.env.gameboy.action_history[0] == 5 or self.env.env.gameboy.action_history[0] == 6) and self.env.env.game.get_game_state() != 3:
+                self.collisions += 1
+
             reward = 0
         elif (x_pos, y_pos, map_n) in self.env.visited_pos:
             reward = 0.01

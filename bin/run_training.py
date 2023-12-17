@@ -25,46 +25,76 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, features_dim=64):
-        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+    def __init__(self, observation_space):
+        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim=1)
 
-        # Define CNN architecture for spatial inputs
-        self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
+        # CNN for 'screen' and 'visited'
+        self.screen_cnn = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Flatten()
+        )
+        self.visited_cnn = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
 
-        # Fully connected layer for the one-hot encoded vector
-        self.fc_p2p = nn.Sequential(
-            nn.Linear(37, 16),
-            nn.ReLU()
-        )
+        # RNN for sequential data processing
+        rnn_input_size = 16 * 10 * 7  # Adjust based on CNN output
+        rnn_hidden_size = 32
+        self.screen_rnn = nn.GRU(input_size=rnn_input_size, hidden_size=rnn_hidden_size, batch_first=True)
+        self.visited_rnn = nn.GRU(input_size=rnn_input_size, hidden_size=rnn_hidden_size, batch_first=True)
 
-        # Output layer to combine features
-        self.fc_combined = nn.Sequential(
-            nn.Linear(16 * (7 + 3) * 7 * 2 + 16, features_dim),  # Adjust input size
-            nn.ReLU()
+        # Embeddings for discrete values
+        self.action_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.game_state_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+
+        # Fully connected layers for output
+        total_embedding_dim = 8 + 8  # Sum of embedding dimensions
+
+        self.fc_layers = nn.Sequential(
+            nn.Linear(2 * rnn_hidden_size + total_embedding_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, self.features_dim)
         )
 
     def forward(self, observations):
-        screen = observations["screen"].float() / 255  # Normalize and add channel dimension
-        screen = screen.unsqueeze(1)  # Shape: [batch_size, 1, 10, 7]
+        # Batch size dynamic handling
+        batch_size = observations["screen"].size(0)
 
-        screen_visited = observations["screen_visited"].float().unsqueeze(1)  # Shape: [batch_size, 1, 10, 7]
+        # Process 'screen' and 'visited' through CNN and reshape for RNN input
+        screen_features = self.screen_cnn(observations["screen"].unsqueeze(1))
+        screen_features = screen_features.view(batch_size, 1, -1)
 
-        p2p = observations["p2p"].float()
+        visited_features = self.visited_cnn(observations["visited"].unsqueeze(1))
+        visited_features = visited_features.view(batch_size, 1, -1)
 
-        # Apply CNN to spatial inputs
-        screen_features = self.cnn(screen)
-        screen_visited_features = self.cnn(screen_visited)
+        # Process through RNN
+        _, screen_rnn_features = self.screen_rnn(screen_features)
+        _, visited_rnn_features = self.visited_rnn(visited_features)
 
-        # Apply fully connected layer to p2p input
-        p2p_features = self.fc_p2p(p2p)
+        # Reshape RNN outputs to 2D (batch_size, features)
+        screen_rnn_features = screen_rnn_features.view(batch_size, -1)
+        visited_rnn_features = visited_rnn_features.view(batch_size, -1)
 
-        # Combine features
-        combined = torch.cat([screen_features, screen_visited_features, p2p_features], dim=1)
-        return self.fc_combined(combined)
+        # Embeddings for discrete values
+        action_features = self.action_embedding(observations["action"].long()).view(batch_size, -1)
+        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(batch_size, -1)
+
+        # Concatenate all features
+        combined_features = torch.cat([
+            screen_rnn_features, 
+            visited_rnn_features, 
+            action_features, 
+            game_state_features
+        ], dim=1)
+
+        # Final processing through fully connected layers
+        return self.fc_layers(combined_features)
+
 
 
 def make_env(thread_id, env_conf, seed=0):
@@ -85,7 +115,7 @@ def make_env(thread_id, env_conf, seed=0):
 if __name__ == '__main__':
 
     use_wandb_logging = True
-    ep_length = 2048 * 10
+    ep_length = 2048 * 1
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'../saved_runs/session_{sess_id}')
 
@@ -98,7 +128,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 4  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
@@ -132,7 +162,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    file_name = '../saved_runs/session_2ea2edc2/poke_65519616_steps'
+    #file_name = '../saved_runs/session_2ea2edc2/poke_65519616_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')
@@ -150,7 +180,7 @@ if __name__ == '__main__':
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
         #                   "features_extractor_kwargs": {"features_dim": 64}},
         model = PPO("MultiInputPolicy", env, 
-                    verbose=1, n_steps=2048 // 8, batch_size=128, n_epochs=3, gamma=0.998,
+                    verbose=1, n_steps=2048 // 8, batch_size=128, n_epochs=3, gamma=0.998, policy_kwargs={"features_extractor_class": CustomFeatureExtractor},
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)
