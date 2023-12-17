@@ -40,21 +40,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.Flatten()
         )
 
-        # RNN for sequential data processing
-        rnn_input_size = 16 * 10 * 7  # Adjust based on CNN output
-        rnn_hidden_size = 32
-        self.screen_rnn = nn.GRU(input_size=rnn_input_size, hidden_size=rnn_hidden_size, batch_first=True)
-        self.visited_rnn = nn.GRU(input_size=rnn_input_size, hidden_size=rnn_hidden_size, batch_first=True)
-
         # Embeddings for discrete values
         self.action_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
 
-        # Fully connected layers for output
+        # Calculate the total features after concatenation
+        cnn_output_dim = 16 * 10 * 7  # Adjust based on CNN output
         total_embedding_dim = 8 + 8  # Sum of embedding dimensions
+        total_features_dim = 2 * cnn_output_dim + total_embedding_dim
 
+        # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(2 * rnn_hidden_size + total_embedding_dim, 64),
+            nn.Linear(total_features_dim, 64),
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
@@ -62,32 +59,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations):
-        # Batch size dynamic handling
-        batch_size = observations["screen"].size(0)
-
-        # Process 'screen' and 'visited' through CNN and reshape for RNN input
-        screen_features = self.screen_cnn(observations["screen"].unsqueeze(1))
-        screen_features = screen_features.view(batch_size, 1, -1)
-
-        visited_features = self.visited_cnn(observations["visited"].unsqueeze(1))
-        visited_features = visited_features.view(batch_size, 1, -1)
-
-        # Process through RNN
-        _, screen_rnn_features = self.screen_rnn(screen_features)
-        _, visited_rnn_features = self.visited_rnn(visited_features)
-
-        # Reshape RNN outputs to 2D (batch_size, features)
-        screen_rnn_features = screen_rnn_features.view(batch_size, -1)
-        visited_rnn_features = visited_rnn_features.view(batch_size, -1)
+        # Process 'screen' and 'visited' through CNN
+        screen_features = self.screen_cnn(observations["screen"].unsqueeze(1))  # Add channel dimension
+        visited_features = self.visited_cnn(observations["visited"].unsqueeze(1))  # Add channel dimension
 
         # Embeddings for discrete values
-        action_features = self.action_embedding(observations["action"].long()).view(batch_size, -1)
-        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(batch_size, -1)
+        action_features = self.action_embedding(observations["action"].long()).view(-1, 8)
+        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(-1, 8)
 
         # Concatenate all features
         combined_features = torch.cat([
-            screen_rnn_features, 
-            visited_rnn_features, 
+            screen_features, 
+            visited_features, 
             action_features, 
             game_state_features
         ], dim=1)
@@ -128,7 +111,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
