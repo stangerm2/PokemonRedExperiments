@@ -15,7 +15,7 @@ class RedGymMap:
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
         self.visited_pos = {}
         self.visited_pos_order = deque()
-        self.new_map = 0
+        self.new_map = 0  # TODO: Inc/dec to 6
         self.moved_location = False  # indicates if the player moved 1 or more spot
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
@@ -24,13 +24,17 @@ class RedGymMap:
 
         self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        self.walkable = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
 
         self.tester = RedGymObsTester(self)
+
+        np.set_printoptions(linewidth=np.inf)
 
 
     def _update_tile_obs(self):
         # The screen tiles don't have sprites/npc's with them
         self.screen[0:7, 0:7] = self.env.game.map.get_centered_7x7_tiles()
+        self.walkable[0:7, 0:7] = self.env.game.map.get_centered_step_count_7x7_screen()
 
 
     def _update_visited_obs(self, x_pos_new, y_pos_new, n_map_new):
@@ -56,14 +60,17 @@ class RedGymMap:
         for i, bit in enumerate(x_pos_binary):
             self.screen[SCREEN_VIEW_SIZE][i] = bit
             self.visited[SCREEN_VIEW_SIZE][i] = bit
+            self.walkable[SCREEN_VIEW_SIZE][i] = bit
 
         for i, bit in enumerate(y_pos_binary):
             self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
             self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
+            self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
 
         for i, bit in enumerate(m_pos_binary):
             self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
             self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
+            self.walkable[SCREEN_VIEW_SIZE + 2][i] = bit
 
 
     def _traverse_matrix(self, x_pos_new, y_pos_new, n_map_new, callback):
@@ -95,6 +102,7 @@ class RedGymMap:
     def _clear_map_obs(self):
         self.screen = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        self.walkable = np.zeros((SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8)
 
 
     def save_post_action_pos(self):
@@ -108,7 +116,7 @@ class RedGymMap:
             # When the game goes to a new map, it changes m first, then y,x will update on the next turn, still some corner cases like fly, blackout, bike
             if self.new_map:
                 self.x_pos_org, self.y_pos_org, self.n_map_org = x_pos_new, y_pos_new, n_map_new
-                self.new_map = False
+                self.new_map -= 1
             elif n_map_new == self.n_map_org:
                 if not (abs(self.x_pos_org - x_pos_new) + abs(self.y_pos_org - y_pos_new) <= 1):
                     self.update_map_stats()
@@ -119,7 +127,7 @@ class RedGymMap:
                     self.env.support.save_debug_string(debug_str)
                     # assert False
             else:
-                self.new_map = True
+                self.new_map = 1
 
             if (x_pos_new, y_pos_new, n_map_new) in self.visited_pos:
                 self.discovered_location = True
@@ -151,6 +159,8 @@ class RedGymMap:
         debug_str += f"{self.screen}"
         debug_str += f"\n"
         debug_str += f"{self.visited}"
+        debug_str += f"\n"
+        debug_str += f"{self.walkable}"
 
         if len(self.location_history) > 10:
             self.location_history.popleft()
@@ -167,6 +177,7 @@ class RedGymMap:
                 
         self.pokecenter_history[pokecenter_id] = True
         return 100
+
 
     def get_exploration_reward(self):
         x_pos, y_pos, map_n = self.env.game.map.get_current_location()
@@ -189,5 +200,142 @@ class RedGymMap:
             self._update_visited_obs(x_pos_new, y_pos_new, n_map_new)
             self._update_npc_and_norm_obs(x_pos_new, y_pos_new, n_map_new)  # Overwrites screen with npc's locations
             self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
+            #self.tilemap_matrix()
 
         self.update_map_stats()
+
+
+
+    def get_tile_obs(self):
+        # return a matrix size 9,10 that represents the world map tiles
+        
+        screen_tilemap = self.tilemap_matrix()
+
+        walkable_tiles_indices = []
+        tile_obs = np.zeros((9,10), np.uint8)
+        collision_ptr = TilesetHeaderAddress.COLLISION_DATA_POINTER.read(env.pyboy)
+        tileset_type = MapMiscAddress.TILESET_TYPE.read(env.pyboy)
+        tileset = TilesetID.find_value(PlayerPositionAddress.CURRENT_TILESET.read(env.pyboy))
+        grass_tile_index = TilesetHeaderAddress.GRASS_TILE.read(env.pyboy)
+        talking_over_tiles = TilesetHeaderAddress.TALKING_OVER_TILES.read_list(env.pyboy)
+        talking_over_tiles = list(filter(lambda x: x != 0xFF, talking_over_tiles))
+        for i in range(len(talking_over_tiles)):
+            talking_over_tiles[i] = talking_over_tiles[i] + 0x100
+
+        if tileset_type > 0:
+            if grass_tile_index != 0xFF:
+                grass_tiles = [grass_tile_index + 0x100]
+            else:
+                grass_tiles = []
+        else:
+            grass_tiles = []
+
+
+        for i in range(0x180): # Check all tiles in tilemap
+            tile_index = read_m(env.pyboy, collision_ptr + i)
+            if tile_index == 0xFF:
+                break
+            else:
+                walkable_tiles_indices.append(tile_index + 0x100) #Adding 256 for some reason?
+
+        
+        #  0 - WALL
+        #  2 - WALKABLE
+
+        tile_obs = np.multiply(np.isin(screen_tilemap, walkable_tiles_indices).astype(np.uint8),2)
+        
+        #  3 - GRASS
+        grass_matrix = np.multiply(np.isin(screen_tilemap, grass_tiles).astype(np.uint8),1) #Grass is walkable so its add 1
+        tile_obs = np.add(tile_obs, grass_matrix)
+
+        #  5 - CUT
+
+        if tileset in CUT_TREE:
+            jump_matrix = np.multiply(np.isin(screen_tilemap, CUT_TREE[tileset]).astype(np.uint8),5)
+            tile_obs = np.add(tile_obs, jump_matrix)
+
+
+        #  6 - SEA
+        if tileset in SURFABLE:
+            jump_matrix = np.multiply(np.isin(screen_tilemap, SURFABLE[tileset]).astype(np.uint8),6)
+            tile_obs = np.add(tile_obs, jump_matrix)
+
+
+        #  7 - JUMP
+        if tileset in JUMPABLE:
+            jump_matrix = np.multiply(np.isin(screen_tilemap, JUMPABLE[tileset]).astype(np.uint8),7) # Jump is a Collision so Zero
+            tile_obs = np.add(tile_obs, jump_matrix)
+
+
+        #  4 - WARP
+        player_y = PlayerPositionAddress.CURRENT_Y_POS.read(env.pyboy)
+        player_x = PlayerPositionAddress.CURRENT_X_POS.read(env.pyboy)
+        warp_matrix = np.zeros(screen_tilemap.shape, dtype=np.uint8)
+        obj_data_ptr = MapHeaderAddress.OBJ_DATA_POINTER.read(env.pyboy)
+        num_warps = read_m(env.pyboy, obj_data_ptr + 0x1) # First Byte of object Data is border block ID
+
+        # 4 bytes per Warp
+        for i in range(0,num_warps):
+            y, x, _ , _ = read_multi_m_list(env.pyboy,obj_data_ptr + 0x2 + (i * 0x4),4)
+            ## Format for Warps is
+            # Y, X, Destination warp-to ID
+            y_offset = player_y - y
+            x_offset = player_x - x
+
+            matrix_y = 4 - y_offset
+            matrix_x = 4 - x_offset
+
+            if matrix_y >= 9 or matrix_y < 0:
+                continue
+
+            if matrix_x >= 10 or matrix_x < 0:
+                continue
+
+            if tile_obs[matrix_y][matrix_x] == 0:
+                continue
+
+            warp_matrix[matrix_y][matrix_x] = 4
+
+        tile_obs = np.add(tile_obs,warp_matrix)
+        
+        #  8 - TALK
+
+        talkover_area_matrix = np.multiply(np.isin(screen_tilemap, talking_over_tiles).astype(np.uint8),8)
+        tile_obs = np.add(tile_obs, talkover_area_matrix)
+
+        #  9 - Sprite
+
+        for i in range(0x10, 0x100, 0x010):
+
+            base_sprite_address = SpriteBaseAddress.PLAYER_SPRITE.value + i
+            sprite_pic_address = base_sprite_address + SpriteMemoryOffset.PICTURE_ID.value[0]
+            sprite_x_addr = base_sprite_address + SpriteMemoryOffset.X_SCREEN_POS.value[0]
+            sprite_y_addr = base_sprite_address + SpriteMemoryOffset.Y_SCREEN_POS.value[0]
+            sprite_offscreen = base_sprite_address + SpriteMemoryOffset.IMAGE_INDEX.value[0]
+            sprite_offscreen = read_m(env.pyboy,sprite_offscreen)
+            if sprite_offscreen == 0xFF:
+                continue
+            x,y = read_m(env.pyboy,sprite_x_addr), read_m(env.pyboy, sprite_y_addr)
+            sprite_pic_id = read_multi_m(env.pyboy,sprite_pic_address)
+
+            # player is at 64,60
+            x_offset, y_offset = x - 64, y - 6
+            x_offset, y_offset = int(x_offset/16) , int(y_offset /16)
+            matrix_y = y_offset + 1
+            matrix_x = x_offset + 4
+
+            if matrix_y >= 9 or matrix_y < 0:
+                continue
+
+            if matrix_x >= 10 or matrix_x < 0:
+                continue
+
+            tile_obs[matrix_y][matrix_x] = 9
+
+
+        #  1 - PLAYER
+        tile_obs[4][4] = 1
+
+
+        #tile_obs = np.multiply(np.divide(tile_obs,9,dtype=np.float16),255, dtype=np.uint8, casting='unsafe')
+        return tile_obs

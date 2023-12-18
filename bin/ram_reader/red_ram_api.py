@@ -359,8 +359,8 @@ class Map:
     
     def get_centered_7x7_tiles(self):
         # Starting addresses for each row
-        starting_addresses = [TILE_COL_0_ROW_0, TILE_COL_0_ROW_1, TILE_COL_0_ROW_2, TILE_COL_0_ROW_3,
-                               TILE_COL_0_ROW_4, TILE_COL_0_ROW_5, TILE_COL_0_ROW_6]
+        starting_addresses = [TILE_COL_1_ROW_1, TILE_COL_1_ROW_2, TILE_COL_1_ROW_3, TILE_COL_1_ROW_4,
+                               TILE_COL_1_ROW_5, TILE_COL_1_ROW_6, TILE_COL_1_ROW_7]
         screen_size = len(starting_addresses)
         increment_per_column = 2
 
@@ -372,6 +372,33 @@ class Map:
                 screen[row][col] = self.env.ram_interface.read_memory(address)
 
         return screen
+    
+    def get_centered_step_count_7x7_screen(self):
+        collision_ptr_1, collision_ptr_2 = self.env.ram_interface.read_memory(TILE_COLLISION_PTR_1), self.env.ram_interface.read_memory(TILE_COLLISION_PTR_2)
+        screen = self.get_centered_7x7_tiles()
+        for row in range(screen.shape[0]):
+            for col in range(screen.shape[1]):
+                if screen[row][col] in WALKABLE_TILES.get((collision_ptr_1, collision_ptr_2), []):
+                    screen[row][col] = 1
+                else:
+                    screen[row][col] = 0
+
+        return screen
+    
+    def get_screen_background_tilemap(self):
+        bsm = self.env.ram_interface.pyboy.botsupport_manager()
+        ((scx, scy), (wx, wy)) = bsm.screen().tilemap_position()
+        tilemap = np.array(bsm.tilemap_background()[:, :])
+        return np.roll(np.roll(tilemap, -scy // 8, axis=0), -scx // 8, axis=1)[:18, :20]
+
+    def tilemap_matrix(self,):
+        screen_tiles = self.get_screen_background_tilemap()
+        print()
+        print(screen_tiles)
+        print
+        bottom_left_screen_tiles = screen_tiles[1:1 + screen_tiles.shape[0]:2, ::2]
+        return bottom_left_screen_tiles 
+    
 
     def get_npc_location_dict(self, skip_moving_npc=True):
         # Moderate testing show's NPC's are never on screen during map transitions
@@ -383,9 +410,9 @@ class Map:
                 continue
 
             # Moving sprites can cause complexity, use at discretion with the flag.
-            can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
-            if skip_moving_npc and can_move != 0xFF:
-                continue
+            #can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
+            #if skip_moving_npc and can_move != 0xFF:
+            #    continue
             
             picture_id = self.env.ram_interface.read_memory(sprite_addr)
             x_pos = self.env.ram_interface.read_memory(sprite_addr + 0x0105) - 4  # topmost 2x2 tile has value 4), thus the offset

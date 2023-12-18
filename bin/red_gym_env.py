@@ -1,3 +1,4 @@
+import random
 import uuid
 from pathlib import Path
 
@@ -54,6 +55,7 @@ def initialize_observation_space(extra_buttons):
             # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
+            "walkable": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
             "action": spaces.Discrete(7),
             #"p2p": spaces.MultiBinary(150),
 
@@ -134,6 +136,8 @@ class RedGymEnv(Env):
         return self._get_observation(), {}
 
     def _reset_env_state(self):
+        self.init_state = 'pokemon_ai_' + str(random.randint(2, 22))
+
         self.support = RedGymEnvSupport(self)
         self.map = RedGymMap(self)
         self.player = RedGymPlayer(self)
@@ -200,6 +204,7 @@ class RedGymEnv(Env):
             # Game View:
             "screen": self.support.map.screen,
             "visited": self.support.map.visited,
+            "walkable": self.support.map.walkable,
             "action": self.gameboy.action_history,
             #"p2p" : self.support.map.tester.p2p_obs,
 

@@ -13,15 +13,6 @@ import torch.nn as nn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from red_env_constants import *
 
-# Embedding sizes
-embedding_size_x = 8
-embedding_size_y = 8
-embedding_size_map = 8
-POS_MEMORY_SIZE = 10
-
-import torch
-import torch.nn as nn
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
@@ -32,12 +23,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.cnn = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
             nn.Flatten()
         )
 
         # Embeddings for discrete values
-        self.action_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.game_state_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
+        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
         # Calculate the total features after concatenation
         cnn_output_dim = 16 * 10 * 7  # Adjust based on CNN output
@@ -46,19 +39,21 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Output layer to combine features
         self.fc_combined = nn.Sequential(
-            nn.Linear(3232, features_dim),  # Adjust input size
+            nn.Linear(7712, features_dim),  # Adjust input size
             nn.ReLU()
         )
 
     def forward(self, observations):
-        batch_size = observations["screen"].size(0)  # Get dynamic batch size from screen
+        batch_size = observations["visited"].size(0)  # Get dynamic batch size from screen
 
         screen = observations["screen"].unsqueeze(1)  # Normalize and add channel dimension
         visited = observations["visited"].unsqueeze(1)
+        walkable = observations["walkable"].unsqueeze(1)  # Normalize and add channel dimension
 
         # Apply CNN to spatial inputs
         screen_features = self.cnn(screen)
         visited_features = self.cnn(visited)
+        walkable_features = self.cnn(walkable)
 
         # Embeddings for discrete values
         # Explicitly use batch_size for reshaping
@@ -68,7 +63,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
             screen_features, 
-            visited_features, 
+            visited_features,
+            walkable_features,
             action_features, 
             game_state_features
         ], dim=1)
@@ -142,7 +138,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../saved_runs/session_2ea2edc2/poke_65519616_steps'
+    #file_name = '../saved_runs/session_52216354/poke_223223808_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')
@@ -159,8 +155,8 @@ if __name__ == '__main__':
     else:
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
         #                   "features_extractor_kwargs": {"features_dim": 64}},
-        model = PPO("MultiInputPolicy", env, 
-                    verbose=1, n_steps=2048 // 8, batch_size=128, n_epochs=3, gamma=0.998,  policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
+        model = PPO("MultiInputPolicy", env, ent_coef=0.01,
+                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.998,  policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)

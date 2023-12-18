@@ -64,16 +64,19 @@ while not pyboy.tick():
         frame = 0
 
 
-        #if os.path.exists("save"):
-        #        # Save to file
-        #        file_like_object = open("pokemon_ai_squirt_poke_balls.state", "wb")
-        #        pyboy.save_state(file_like_object)
+        if os.path.exists("save"):
+                # Save to file
+                file_like_object = open("pokemon_ai_1", "wb")
+                pyboy.save_state(file_like_object)
 
         game.process_game_states()
 
+        print()
+        print(game.map.get_centered_7x7_tiles())
+
         #clear_screen()
-        sys.stdout.write(f'\r{get_debug_str(game)}')
-        sys.stdout.flush()
+        #sys.stdout.write(f'\r{get_debug_str(game)}')
+        #sys.stdout.flush()
 
 
 
