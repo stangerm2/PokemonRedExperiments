@@ -53,9 +53,10 @@ def initialize_observation_space(extra_buttons):
     return spaces.Dict(
         {
             # Game View:
-            "screen": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.float32),
-            "visited": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
-            "walkable": spaces.Box(low=0, high=1, shape=(10, 7), dtype=np.uint8),
+            "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
+            "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
+            "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
+            "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
             "action": spaces.Discrete(7),
             #"p2p": spaces.MultiBinary(150),
 
@@ -206,6 +207,7 @@ class RedGymEnv(Env):
             "visited": self.support.map.visited,
             "walkable": self.support.map.walkable,
             "action": self.gameboy.action_history,
+            "coordinates": self.support.map.coordinates,
             #"p2p" : self.support.map.tester.p2p_obs,
 
             # Game:

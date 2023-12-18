@@ -21,39 +21,40 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Define CNN architecture for spatial inputs
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
 
+        # Flatten the grid
+        self.flatten = nn.Flatten()
+
         # Embeddings for discrete values
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
-        # Calculate the total features after concatenation
-        cnn_output_dim = 16 * 10 * 7  # Adjust based on CNN output
-        total_embedding_dim = 8 + 8  # Sum of embedding dimensions
-        total_features_dim = 2 * cnn_output_dim + total_embedding_dim
+        # Calculate the output size of the last CNN layer
+        cnn_output_dim = 32 * 7 * 10  # Assuming the spatial dimensions remain 7x7
 
-        # Output layer to combine features
-        self.fc_combined = nn.Sequential(
-            nn.Linear(7712, features_dim),  # Adjust input size
+        # Fully connected layers for output
+        self.fc_layers = nn.Sequential(
+            nn.Linear(2581, features_dim),
             nn.ReLU()
         )
 
     def forward(self, observations):
         batch_size = observations["visited"].size(0)  # Get dynamic batch size from screen
 
-        screen = observations["screen"].unsqueeze(1)  # Normalize and add channel dimension
-        visited = observations["visited"].unsqueeze(1)
-        walkable = observations["walkable"].unsqueeze(1)  # Normalize and add channel dimension
+        combined_input = torch.cat([observations["screen"].unsqueeze(1),
+                                    observations["visited"].unsqueeze(1),
+                                    observations["walkable"].unsqueeze(1)], dim=1)
 
         # Apply CNN to spatial inputs
-        screen_features = self.cnn(screen)
-        visited_features = self.cnn(visited)
-        walkable_features = self.cnn(walkable)
+        screen_features = self.cnn(combined_input)
+
+        coordinate_features = self.flatten(observations["coordinates"].unsqueeze(1))
 
         # Embeddings for discrete values
         # Explicitly use batch_size for reshaping
@@ -62,15 +63,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
-            screen_features, 
-            visited_features,
-            walkable_features,
+            screen_features,
+            coordinate_features,
             action_features, 
             game_state_features
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
-        return self.fc_combined(combined_features)
+        return self.fc_layers(combined_features)
 
 
 def make_env(thread_id, env_conf, seed=0):
