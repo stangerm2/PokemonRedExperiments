@@ -21,7 +21,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Define CNN architecture for spatial inputs
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
@@ -35,20 +35,24 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1776, features_dim),
+            nn.Linear(4128, features_dim),
             nn.ReLU()
         )
 
     def forward(self, observations):
         batch_size = observations["visited"].size(0)  # Get dynamic batch size from screen
 
-        combined_input = torch.cat([observations["screen"].unsqueeze(1),
-                                    observations["visited"].unsqueeze(1),
-                                    observations["walkable"].unsqueeze(1),
-                                    observations["coordinates"].unsqueeze(1)], dim=1)
+        screen = observations["screen"].unsqueeze(1)  # Normalize and add channel dimension
+        visited = observations["visited"].unsqueeze(1)
+        walkable = observations["walkable"].unsqueeze(1)
+        coordinates = observations["coordinates"].unsqueeze(1)
 
         # Apply CNN to spatial inputs
-        screen_features = self.cnn(combined_input)
+        screen_features = self.cnn(screen)
+        visited_features = self.cnn(visited)
+        walkable_features = self.cnn(walkable)
+        coordinates_features = self.cnn(coordinates)
+
         # Embeddings for discrete values
         # Explicitly use batch_size for reshaping
         action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
@@ -57,6 +61,9 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
             screen_features,
+            visited_features,
+            walkable_features,
+            coordinates_features,
             action_features, 
             game_state_features
         ], dim=1)
@@ -96,7 +103,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
