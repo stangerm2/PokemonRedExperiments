@@ -15,7 +15,7 @@ class RedGymMap:
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
         self.visited_pos = {}
         self.visited_pos_order = deque()
-        self.new_map = 0  # TODO: Inc/dec to 6
+        self.new_map = 5  # TODO: Inc/dec to 6
         self.moved_location = False  # indicates if the player moved 1 or more spot
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
@@ -122,7 +122,7 @@ class RedGymMap:
                     self.env.support.save_debug_string(debug_str)
                     # assert False
             else:
-                self.new_map = 1
+                self.new_map = 5
 
             if (x_pos_new, y_pos_new, n_map_new) in self.visited_pos:
                 self.discovered_location = True

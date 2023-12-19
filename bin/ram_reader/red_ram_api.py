@@ -114,8 +114,11 @@ class World:
             mart[i] = item
 
         return mart
-    
+        
     # TODO: Need item costs, 0xcf8f wItemPrices isn't valid: http://www.psypokes.com/rby/shopping.php
+
+    def get_pokecenter_id(self):
+        return self.env.ram_interface.read_memory(POKECENTER_VISITED)
 
 
 class Battle:
@@ -124,6 +127,7 @@ class Battle:
         self.in_battle = False
         self.turns_in_current_battle = 0
         self.last_turn_count = 0
+        self.battle_done = False
 
     def _in_battle_state(self):
         if self.env.game_state in BATTLE_MENU_STATES or self.env.game_state == self.env.GameState.BATTLE_TEXT:
@@ -131,18 +135,27 @@ class Battle:
         return False
 
     def get_battle_state(self):
-        self.in_battle = self.get_battle_type()
+        battle_type = self.get_battle_type()
         in_pre_battle = self.is_in_pre_battle()
 
-        if not (self.in_battle or in_pre_battle):
+        if not (battle_type or in_pre_battle):
             self.turns_in_current_battle = 0
             self.last_turn_count = 0
+            self.in_battle = False
+            self.battle_done = False
             return self.env.GameState.GAME_STATE_UNKNOWN
+        
+        self.in_battle = True
+
+        turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
+        if turns_in_current_battle != self.last_turn_count:
+            self.turns_in_current_battle += 1 
+            self.last_turn_count = turns_in_current_battle
 
         cursor_location, state = self.env.menus.get_item_menu_context()
         game_state = TEXT_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamMenuValues.UNKNOWN_MENU)
 
-        # HACK: Corner-case where the reg's don't follow the same pattern as the other menu's,
+        # HACK: This is a nasty in the game where the reg's don't follow the same pattern as the other menu's,
         # both seem to only be PC menu's which can't be accessed in battle but this could get nasty somewhere else in the game.
         # This happens when in battle after betting enemy trainer pokemon and are asked if you'd like to switch your pokemon.
         if game_state == RedRamMenuValues.PC_LOGOFF:
@@ -157,7 +170,7 @@ class Battle:
             return game_state
 
         # when text is on screen but menu reg's are clear, we can't be in a menu
-        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not self.in_battle:
+        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not battle_type:
             return self.env.GameState.BATTLE_ANIMATION
         elif game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO:
             return game_state
@@ -173,6 +186,15 @@ class Battle:
 
 
         return self.env.GameState.GAME_STATE_UNKNOWN
+    
+    def win_battle(self):
+        # You can only win once per battle, so don't call w/o being ready to process a win otherwise you'll lose capturing it for the battle cycle
+        if (self.in_battle == False or self.battle_done == True or
+            self.get_battles_pokemon_left() != 0 or self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE) == 0):
+            return False
+        
+        self.battle_done = True
+        return True
     
     def get_battle_type(self):
         return self.env.ram_interface.read_memory(BATTLE_TYPE)
@@ -259,11 +281,6 @@ class Battle:
         if not self.get_battle_type():
             return [0x00] * 3
 
-        turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
-        if turns_in_current_battle != self.last_turn_count:
-            self.turns_in_current_battle += 1
-            self.last_turn_count = turns_in_current_battle
-
         # turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
         player_selected_move = self.env.ram_interface.read_memory(PLAYER_SELECTED_MOVE)
         enemy_selected_move = self.env.ram_interface.read_memory(ENEMY_SELECTED_MOVE)
@@ -282,13 +299,16 @@ class Battle:
     def get_battles_pokemon_left(self):
         alive_pokemon = 0
 
+        if not self.in_battle:
+            return 0 
+
         # Wild mons only have 1 pokemon alive and their status is in diff reg's
-        if self.get_battle_type() == 0x01:
+        if self.get_battle_type() == 1: # TODO: Fix enum
             return int(self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) != 0 or self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1]) != 0)
         
         for i in range(POKEMON_MAX_COUNT):
-            if (self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[0]) != 0 or
-                self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[1]) != 0):
+            if (self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[0] + ENEMY_TRAINER_POKEMON_HP_OFFSET * i) != 0 or
+                self.env.ram_interface.read_memory(ENEMY_TRAINER_POKEMON_HP[1] + ENEMY_TRAINER_POKEMON_HP_OFFSET * i) != 0):
                 alive_pokemon += 1 
 
         return alive_pokemon
