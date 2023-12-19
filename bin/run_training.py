@@ -21,15 +21,12 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Define CNN architecture for spatial inputs
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=4, out_channels=32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
-
-        # Flatten the grid
-        self.flatten = nn.Flatten()
 
         # Embeddings for discrete values
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
@@ -40,7 +37,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(2581, features_dim),
+            nn.Linear(4128, features_dim),
             nn.ReLU()
         )
 
@@ -49,22 +46,19 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         combined_input = torch.cat([observations["screen"].unsqueeze(1),
                                     observations["visited"].unsqueeze(1),
-                                    observations["walkable"].unsqueeze(1)], dim=1)
+                                    observations["walkable"].unsqueeze(1),
+                                    observations["coordinates"].unsqueeze(1)], dim=1)
 
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
-
-        coordinate_features = self.flatten(observations["coordinates"].unsqueeze(1))
-
         # Embeddings for discrete values
         # Explicitly use batch_size for reshaping
-        action_features = self.action_embedding(observations["action"].long()).view(batch_size, -1)
-        game_state_features = self.game_state_embedding(observations["game_state"].long()).view(batch_size, -1)
+        action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
+        game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
 
         # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
             screen_features,
-            coordinate_features,
             action_features, 
             game_state_features
         ], dim=1)
@@ -138,7 +132,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../saved_runs/session_52216354/poke_223223808_steps'
+    #file_name = '../saved_runs/session_2d128799/poke_43425792_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

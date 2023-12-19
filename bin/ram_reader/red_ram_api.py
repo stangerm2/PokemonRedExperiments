@@ -379,9 +379,9 @@ class Map:
         for row in range(screen.shape[0]):
             for col in range(screen.shape[1]):
                 if screen[row][col] in WALKABLE_TILES.get((collision_ptr_1, collision_ptr_2), []):
-                    screen[row][col] = 1
-                else:
                     screen[row][col] = 0
+                else:
+                    screen[row][col] = 1
 
         return screen
     

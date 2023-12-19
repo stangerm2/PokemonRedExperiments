@@ -56,7 +56,7 @@ def initialize_observation_space(extra_buttons):
             "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
+            "coordinates": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "action": spaces.Discrete(7),
             #"p2p": spaces.MultiBinary(150),
 
@@ -200,6 +200,7 @@ class RedGymEnv(Env):
 
     def _get_observation(self):
         self.support.map.update_map_obs()
+        x, y, map = self.game.map.get_current_location()
 
         observation = {
             # Game View:

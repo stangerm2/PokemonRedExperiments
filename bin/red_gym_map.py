@@ -25,7 +25,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, 7), dtype=np.uint8)  # x,y,map stacked, 7 bits as all val's are < 128
+        self.coordinates = np.zeros((7, 7), dtype=np.uint8)  # x,y,map stacked, 7 bits as all val's are < 128
 
         self.tester = RedGymObsTester(self)
 
@@ -98,7 +98,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, 7), dtype=np.uint8)
+        self.coordinates = np.zeros((7, 7), dtype=np.uint8)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
