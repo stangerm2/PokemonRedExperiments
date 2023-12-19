@@ -21,9 +21,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Define CNN architecture for spatial inputs
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channels=32, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
@@ -37,7 +35,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(4128, features_dim),
+            nn.Linear(1776, features_dim),
             nn.ReLU()
         )
 
@@ -132,7 +130,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../saved_runs/session_2d128799/poke_43425792_steps'
+    # file_name = '../saved_runs/session_feb681a0/poke_211034112_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')
