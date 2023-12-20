@@ -56,7 +56,7 @@ def initialize_observation_space(extra_buttons):
             "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
+            "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
             "action": spaces.Discrete(7),
             #"p2p": spaces.MultiBinary(150),
 
@@ -138,7 +138,7 @@ class RedGymEnv(Env):
         return self._get_observation(), {}
 
     def _reset_env_state(self):
-        self.init_state = 'checkpoints/pokemon_ai_' + str(random.randint(2, 22))
+        self.init_state = 'checkpoints_pallet/pokemon_ai_' + str(random.randint(2, 22))
 
         self.support = RedGymEnvSupport(self)
         self.map = RedGymMap(self)

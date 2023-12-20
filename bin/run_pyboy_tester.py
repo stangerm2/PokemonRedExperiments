@@ -33,7 +33,7 @@ wSouthConnectedMapWidth = pyboy.get_memory_value(0xD382)
 wSouthConnectedMapYAlignment = pyboy.get_memory_value(0xD383)
 wSouthConnectedMapXAlignment = pyboy.get_memory_value(0xD384)
 
-str = f'cur_x: {cur_x}, cur_y: {cur_y}, map: {map}'
+str0 = f'cur_x: {cur_x}, cur_y: {cur_y}, map: {map}'
 str1 = (f' wNorthConnectionStripSrc: {wNorthConnectionStripSrc},'
         f' wNorthConnectionStripDest: {wNorthConnectionStripDest},'
         f' wNorthConnectionStripLength: {wNorthConnectionStripLength},'
@@ -46,7 +46,7 @@ str2 = (f' wSouthhConnectionStripSrc: {wSouthhConnectionStripSrc},'
         f' wSouthConnectedMapWidth: {wSouthConnectedMapWidth},'
         f' wSouthConnectedMapYAlignment: {wSouthConnectedMapYAlignment},'
         f' wSouthConnectedMapXAlignment: {wSouthConnectedMapXAlignment}')
-#print(str)
+#print(str0)
 ##print(str1)
 #print(str2)
 def clear_screen():
@@ -67,7 +67,9 @@ while not pyboy.tick():
 
         if os.path.exists("save"):
                 # Save to file
-                file_like_object = open("pokemon_ai_" + str(save_itr), "wb")
+                file = "pokemon_ai_" + str(save_itr)
+                print(file)
+                file_like_object = open(file, "wb")
                 pyboy.save_state(file_like_object)
                 save_itr += 1
                 os.remove("save")

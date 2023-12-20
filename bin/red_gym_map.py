@@ -15,7 +15,7 @@ class RedGymMap:
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
         self.visited_pos = {}
         self.visited_pos_order = deque()
-        self.new_map = 6  # TODO: Inc/dec to 6
+        self.new_map = 1  # TODO: Inc/dec to 6
         self.moved_location = False  # indicates if the player moved 1 or more spot
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
@@ -25,7 +25,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)  # x,y,map stacked, 7 bits as all val's are < 128
+        self.coordinates = np.zeros((3, SCREEN_VIEW_SIZE), dtype=np.uint8)  # x,y,map stacked, 7 bits as all val's are < 128
 
         self.tester = RedGymObsTester(self)
 
@@ -58,13 +58,21 @@ class RedGymMap:
         # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
         for i, bit in enumerate(x_pos_binary):
             self.coordinates[0][i] = bit
+            #self.screen[SCREEN_VIEW_SIZE][i] = bit
+            #self.visited[SCREEN_VIEW_SIZE][i] = bit
+            #self.walkable[SCREEN_VIEW_SIZE][i] = bit
 
         for i, bit in enumerate(y_pos_binary):
             self.coordinates[1][i] = bit
+            #self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
+            #self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
+            #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
 
         for i, bit in enumerate(m_pos_binary):
             self.coordinates[2][i] = bit
-
+            #self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
+            #self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
+            #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
 
     def _traverse_matrix(self, x_pos_new, y_pos_new, n_map_new, callback):
         center_x = center_y = SCREEN_VIEW_SIZE // 2
@@ -96,7 +104,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        self.coordinates = np.zeros((3, SCREEN_VIEW_SIZE), dtype=np.uint8)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
@@ -120,7 +128,7 @@ class RedGymMap:
                     self.env.support.save_debug_string(debug_str)
                     # assert False
             else:
-                self.new_map = 6
+                self.new_map = 1
 
             if (x_pos_new, y_pos_new, n_map_new) in self.visited_pos:
                 self.discovered_location = True

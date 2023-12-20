@@ -22,20 +22,27 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
+        )
+
+        # Fully connected layer for coordinates
+        self.coordinates_fc = nn.Sequential(
+            nn.Linear(3 * 7 * 3, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.ReLU()
         )
 
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
+
         # Calculate the output size of the last CNN layer
-        cnn_output_dim = 16 * 7 * 10 + 7 * 8 + 117 * 8 
-        
+        cnn_output_dim = (16 * 7 * 7) + (7 * 3) + (7 * 8) + (117 * 8) 
+
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1776, features_dim),
+            nn.Linear(1840, features_dim),
             nn.ReLU()
         )
 
@@ -44,18 +51,26 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         combined_input = torch.cat([observations["screen"].unsqueeze(1),
                                     observations["visited"].unsqueeze(1),
-                                    observations["walkable"].unsqueeze(1),
-                                    observations["coordinates"].unsqueeze(1)], dim=1)
+                                    observations["walkable"].unsqueeze(1)], dim=1)
 
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
 
+        # Process 'coordinates' and pass through fully connected layer
+        coordinates_input = observations["coordinates"].view(batch_size, -1)
+        coordinates_features = self.coordinates_fc(coordinates_input.repeat(1, 3))
+
         # Explicitly use batch_size for reshaping
+        # TODO: Concat and RNN
         action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
         game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
 
+        # TODO: RNN
+        #position_features = self.game_state_embedding(observations["position"].int()).view(batch_size, -1)
+
         combined_features = torch.cat([
             screen_features,
+            coordinates_features,
             action_features, 
             game_state_features
         ], dim=1)
@@ -95,7 +110,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
