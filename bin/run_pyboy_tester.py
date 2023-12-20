@@ -76,12 +76,12 @@ while not pyboy.tick():
 
         game.process_game_states()
 
-        print()
-        print(game.map.get_centered_7x7_tiles())
+        #print()
+        #print(game.map.get_centered_7x7_tiles())
 
-        #clear_screen()
-        #sys.stdout.write(f'\r{get_debug_str(game)}')
-        #sys.stdout.flush()
+        clear_screen()
+        sys.stdout.write(f'\r{get_debug_str(game)}')
+        sys.stdout.flush()
 
 
 

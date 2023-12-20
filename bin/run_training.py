@@ -18,6 +18,7 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+        self.hidden_state = None
 
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
@@ -28,21 +29,30 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Fully connected layer for coordinates
-        self.coordinates_fc = nn.Sequential(
-            nn.Linear(3 * 7 * 3, features_dim),  # Flattened size of coordinates, repeated 3 times
+        self.fc_explore = nn.Sequential(
+            nn.Linear(3 * 7 * 3, features_dim),  # 3 * 7 matrix binary enc, repeated 3 times, (TODO: TRy plus 7 actions)
             nn.ReLU()
         )
 
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
-        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
+        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)  # TODO: There is a little buffer left in the game_state that can be shaved off later
 
+        action_game_input_size = (7 * 8) + (117 * 8)  # 7 actions, 117 game states, 8 embeddings
 
-        # Calculate the output size of the last CNN layer
+        # RNN layer
+        self.rnn = nn.GRU(input_size=action_game_input_size, hidden_size=8, batch_first=True)
+
+        self.fc_action_game_state = nn.Sequential(
+            nn.Linear(8, features_dim),
+            nn.ReLU()
+        )
+
+        # TODO: Why is this wrong
         cnn_output_dim = (16 * 7 * 7) + (7 * 3) + (7 * 8) + (117 * 8) 
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1840, features_dim),
+            nn.Linear(912, features_dim),
             nn.ReLU()
         )
 
@@ -56,23 +66,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
 
+        # Explicitly use batch_size for reshaping
+        action_input = self.action_embedding(observations["action"].int()).view(batch_size, -1)
+        game_state_input = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
+
+        # Action & Game State are tightly coupled, so concat and run through a FCL
+        # TODO: Test w/ RNN, very important to remember past action sequences
+        action_game_input = torch.cat([action_input, game_state_input], dim=1)
+        action_game_rnn, self.hidden_state = self.rnn(action_game_input, self.hidden_state)  # RNN Layer
+        action_game_rnn = action_game_rnn.unsqueeze(1)  # Add an extra dimension
+        action_game_rnn = action_game_rnn[:, -1, :]  # Selecting the output of the last time step
+        action_game_features = self.fc_action_game_state(action_game_rnn)
+
+        print(self.hidden_state)
+
         # Process 'coordinates' and pass through fully connected layer
         coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_features = self.coordinates_fc(coordinates_input.repeat(1, 3))
-
-        # Explicitly use batch_size for reshaping
-        # TODO: Concat and RNN
-        action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
-        game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
-
-        # TODO: RNN
-        #position_features = self.game_state_embedding(observations["position"].int()).view(batch_size, -1)
+        coordinates_features = self.fc_explore(coordinates_input.repeat(1, 3))
 
         combined_features = torch.cat([
             screen_features,
             coordinates_features,
-            action_features, 
-            game_state_features
+            action_game_features, 
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
@@ -110,7 +125,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
