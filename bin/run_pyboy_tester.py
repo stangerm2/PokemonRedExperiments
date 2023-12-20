@@ -55,6 +55,7 @@ def clear_screen():
         else:
                 os.system('clear')
 
+save_itr = 0
 count = 0
 while not pyboy.tick():
         frame += 1
@@ -66,17 +67,19 @@ while not pyboy.tick():
 
         if os.path.exists("save"):
                 # Save to file
-                file_like_object = open("pokemon_ai_1", "wb")
+                file_like_object = open("pokemon_ai_" + str(save_itr), "wb")
                 pyboy.save_state(file_like_object)
+                save_itr += 1
+                os.remove("save")
 
         game.process_game_states()
 
-        #print()
-        #print(game.map.get_centered_7x7_tiles())
+        print()
+        print(game.map.get_centered_7x7_tiles())
 
-        clear_screen()
-        sys.stdout.write(f'\r{get_debug_str(game)}')
-        sys.stdout.flush()
+        #clear_screen()
+        #sys.stdout.write(f'\r{get_debug_str(game)}')
+        #sys.stdout.flush()
 
 
 

@@ -58,7 +58,8 @@ class RedGymObsTester:
         if map_n == MAP_VALUE_PALLET_TOWN:
             reward = -.5
         elif not self.env.moved_location:
-            if not (self.env.env.gameboy.action_history[0] == 5 or self.env.env.gameboy.action_history[0] == 6) and self.env.env.game.get_game_state() != 3 and self.env.new_map == False:
+            if (not (self.env.env.gameboy.action_history[0] == 5 or self.env.env.gameboy.action_history[0] == 6) and 
+                self.env.env.game.get_game_state() ==  self.env.env.game.GameState.EXPLORING and self.env.new_map == False):
                 self.collisions += 1
 
             reward = 0

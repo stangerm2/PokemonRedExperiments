@@ -20,22 +20,22 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
         # Define CNN architecture for spatial inputs
+	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=4, out_channels=32, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=4, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
 
-        # Embeddings for discrete values
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
         # Calculate the output size of the last CNN layer
-        cnn_output_dim = 32 * 7 * 10  # Assuming the spatial dimensions remain 7x7
-
+        cnn_output_dim = 16 * 7 * 10 + 7 * 8 + 117 * 8 
+        
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(2560, features_dim),
+            nn.Linear(1776, features_dim),
             nn.ReLU()
         )
 
@@ -49,12 +49,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
-        # Embeddings for discrete values
+
         # Explicitly use batch_size for reshaping
         action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
         game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
 
-        # Concatenate all features and ensure correct dimension
         combined_features = torch.cat([
             screen_features,
             action_features, 
@@ -96,7 +95,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
@@ -130,7 +129,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    # file_name = '../saved_runs/session_5907df3d/poke_49266688_steps'
+    # file_name = '../saved_runs/session_2700a5a5/poke_94470144_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

@@ -128,6 +128,7 @@ class RedGymEnv(Env):
         self.action_space = spaces.Discrete(len(self.gameboy.valid_actions))
         self.observation_space = initialize_observation_space(self.extra_buttons)
 
+        np.set_printoptions(linewidth=np.inf)
         # assert len(initialize_observation_space()) == len(self._get_observation())
 
     def reset(self, seed=None):
@@ -137,7 +138,7 @@ class RedGymEnv(Env):
         return self._get_observation(), {}
 
     def _reset_env_state(self):
-        self.init_state = 'pokemon_ai_' + str(random.randint(2, 22))
+        self.init_state = 'checkpoints/pokemon_ai_' + str(random.randint(2, 22))
 
         self.support = RedGymEnvSupport(self)
         self.map = RedGymMap(self)
@@ -200,7 +201,6 @@ class RedGymEnv(Env):
 
     def _get_observation(self):
         self.support.map.update_map_obs()
-        x, y, map = self.game.map.get_current_location()
 
         observation = {
             # Game View:

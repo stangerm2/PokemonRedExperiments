@@ -405,20 +405,6 @@ class Map:
 
         return screen
     
-    def get_screen_background_tilemap(self):
-        bsm = self.env.ram_interface.pyboy.botsupport_manager()
-        ((scx, scy), (wx, wy)) = bsm.screen().tilemap_position()
-        tilemap = np.array(bsm.tilemap_background()[:, :])
-        return np.roll(np.roll(tilemap, -scy // 8, axis=0), -scx // 8, axis=1)[:18, :20]
-
-    def tilemap_matrix(self,):
-        screen_tiles = self.get_screen_background_tilemap()
-        print()
-        print(screen_tiles)
-        print
-        bottom_left_screen_tiles = screen_tiles[1:1 + screen_tiles.shape[0]:2, ::2]
-        return bottom_left_screen_tiles 
-    
 
     def get_npc_location_dict(self, skip_moving_npc=True):
         # Moderate testing show's NPC's are never on screen during map transitions
@@ -429,7 +415,7 @@ class Map:
             if on_screen == 0xFF:
                 continue
 
-            # Moving sprites can cause complexity, use at discretion with the flag.
+            # Moving sprites can cause complexity, use at discretion
             #can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
             #if skip_moving_npc and can_move != 0xFF:
             #    continue
