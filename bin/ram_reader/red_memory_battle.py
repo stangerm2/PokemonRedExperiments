@@ -99,3 +99,101 @@ class BattleTypes(IntEnum):
     DIED = 255,
 
 
+# Update the dictionary with specific effectiveness values
+# The values are based on Pokémon Generation 1 type effectiveness chart
+POKEMON_MATCH_TYPES = {
+    ('0x00', '0x05'): 0.5,  # Normal vs Rock
+    ('0x00', '0x08'): 0,    # Normal vs Ghost
+
+    ('0x01', '0x00'): 2,    # Fighting vs Normal
+    ('0x01', '0x02'): 0.5,  # Fighting vs Flying
+    ('0x01', '0x03'): 0.5,  # Fighting vs Poison
+    ('0x01', '0x05'): 2,    # Fighting vs Rock
+    ('0x01', '0x07'): 0.5,  # Fighting vs Bug
+    ('0x01', '0x08'): 0,    # Fighting vs Ghost
+    ('0x01', '0x18'): 0.5,  # Fighting vs Psychic
+    ('0x01', '0x19'): 2,    # Fighting vs Ice
+
+    ('0x02', '0x01'): 2,    # Flying vs Fighting
+    ('0x02', '0x17'): 0.5,  # Flying vs Electric
+    ('0x02', '0x16'): 2,    # Flying vs Grass
+    ('0x02', '0x05'): 0.5,  # Flying vs Rock
+    ('0x02', '0x07'): 2,    # Flying vs Bug
+
+    ('0x03', '0x03'): 0.5,  # Poison vs Poison
+    ('0x03', '0x04'): 0.5,  # Poison vs Ground
+    ('0x03', '0x05'): 0.5,  # Poison vs Rock
+    ('0x03', '0x08'): 0.5,  # Poison vs Ghost
+    ('0x03', '0x07'): 2,    # Poison vs Bug
+    ('0x03', '0x16'): 2,    # Poison vs Grass
+
+    ('0x04', '0x016'): 0.5, # Ground vs Grass
+    ('0x04', '0x03'): 2,    # Ground vs Poison
+    ('0x04', '0x05'): 2,    # Ground vs Rock
+    ('0x04', '0x07'): 0.5,  # Ground vs Bug
+    ('0x04', '0x17'): 2,    # Ground vs Electric
+    ('0x04', '0x14'): 2,    # Ground vs Fire
+
+    ('0x05', '0x01'): 0.5,  # Rock vs Fighting
+    ('0x05', '0x02'): 2,    # Rock vs Flying
+    ('0x05', '0x04'): 0.5,  # Rock vs Ground
+    ('0x05', '0x07'): 2,    # Rock vs Bug
+    ('0x05', '0x14'): 2,    # Rock vs Fire
+    ('0x05', '0x19'): 2,    # Rock vs Ice
+
+    ('0x14', '0x05'): 0.5,  # Fire vs Rock
+    ('0x14', '0x07'): 2,    # Fire vs Bug
+    ('0x14', '0x14'): 0.5,  # Fire vs Fire
+    ('0x14', '0x15'): 0.5,  # Fire vs Water
+    ('0x14', '0x16'): 2,    # Fire vs Grass
+    ('0x14', '0x19'): 2,    # Fire vs Ice
+    ('0x14', '0x1A'): 0.5,  # Fire vs Dragon
+
+    ('0x15', '0x04'): 2,    # Water vs Ground
+    ('0x15', '0x05'): 2,    # Water vs Rock
+    ('0x15', '0x14'): 2,    # Water vs Fire
+    ('0x15', '0x15'): 0.5,  # Water vs Water
+    ('0x15', '0x16'): 0.5,  # Water vs Grass
+    ('0x15', '0x1A'): 0.5,  # Water vs Dragon
+
+    ('0x17', '0x02'): 2,    # Electric vs Flying
+    ('0x17', '0x04'): 0,    # Electric vs Ground
+    ('0x17', '0x15'): 2,    # Electric vs Water
+    ('0x17', '0x16'): 0.5,  # Electric vs Grass
+    ('0x17', '0x17'): 0.5,  # Electric vs Electric
+    ('0x17', '0x1A'): 0.5,   # Electric vs Dragon
+
+    ('0x16', '0x04'): 2,    # Grass vs Ground
+    ('0x16', '0x05'): 2,    # Grass vs Rock
+    ('0x16', '0x15'): 2,    # Grass vs Water
+    ('0x16', '0x16'): 0.5,  # Grass vs Grass
+    ('0x16', '0x02'): 0.5,  # Grass vs Flying
+    ('0x16', '0x07'): 0.5,  # Grass vs Bug
+    ('0x16', '0x14'): 0.5,  # Grass vs Fire
+    ('0x16', '0x03'): 0.5,  # Grass vs Poison
+
+    ('0x19', '0x02'): 2,    # Ice vs Flying
+    ('0x19', '0x04'): 2,    # Ice vs Ground
+    ('0x19', '0x19'): 0.5,  # Ice vs Ice
+    ('0x19', '0x15'): 0.5,  # Ice vs Water
+    ('0x19', '0x16'): 2,    # Ice vs Grass
+    ('0x19', '0x1A'): 2,    # Ice vs Dragon
+
+    ('0x18', '0x01'): 2,    # Psychic vs Fighting
+    ('0x18', '0x03'): 2,    # Psychic vs Poison
+    ('0x18', '0x18'): 0.5,  # Psychic vs Psychic
+
+    ('0x07', '0x01'): 0.5,  # Bug vs Fighting
+    ('0x07', '0x14'): 0.5,  # Bug vs Fire
+    ('0x07', '0x02'): 0.5,  # Bug vs Flying
+    ('0x07', '0x08'): 0.5,  # Bug vs Ghost
+    ('0x07', '0x16'): 2,    # Bug vs Grass
+    ('0x07', '0x03'): 2,    # Bug vs Poison
+    ('0x07', '0x18'): 2,    # Bug vs Psychic
+
+    ('0x08', '0x00'): 0,    # Ghost vs Normal
+    ('0x08', '0x08'): 2,    # Ghost vs Ghost
+    ('0x08', '0x18'): 0,    # Ghost vs Psychic
+
+    ('0x1A', '0x1A'): 2,    # Dragon vs Dragon
+}
