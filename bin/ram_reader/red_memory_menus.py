@@ -56,8 +56,8 @@ class RedRamMenuKeys:
     BATTLE_ROSTER_PKMN_4 = (0x2C, 0xC4)
     BATTLE_ROSTER_PKMN_5 = (0x54, 0xC4)
     BATTLE_ROSTER_PKMN_6 = (0x7C, 0xC4)
-    BATTLE_ROSTER_STATS = (0x9C, 0xC4)
-    BATTLE_ROSTER_SWITCH = (0xC4, 0xC4)
+    BATTLE_MON_SUB_SELECT_1 = (0x9C, 0xC4)  # In battle this is switch, in start menu this is stats
+    BATTLE_MON_SUB_SELECT_2 = (0xC4, 0xC4)  # In battle this is stats, in start menu this is switch
     BATTLE_ROSTER_CANCEL = (0xEC, 0xC4)
     BATTLE_MENU_ITEM = (0xE9, 0xC4)
     BATTLE_MENU_ITEM_X_USE = (0x8A, 0xC4)
@@ -109,52 +109,56 @@ class RedRamMenuValues(IntEnum):
     SELECT_POKEMON_4 = 49
     SELECT_POKEMON_5 = 50
     SELECT_POKEMON_6 = 51
-    SELECT_STATS = 52
+    MENU_SELECT_STATS = 52
     MENU_SELECT_SWITCH = 53
     MENU_SELECT_CANCEL = 54
-    BATTLE_MENU_ITEM = 55
-    BATTLE_MENU_ITEM_X_USE = 56
-    BATTLE_MENU_ITEM_X_TOSS = 57
-    BATTLE_MART_PC_ITEM = 58  # number intentionally left blank
-    BATTLE_MART_PC_ITEM_CANCEL = 59
-    BATTLE_MENU_RUN = 60
+    BATTLE_SELECT_STATS = 55
+    BATTLE_SELECT_SWITCH = 56
+    BATTLE_MENU_ITEM = 57
+    BATTLE_MENU_ITEM_X_USE = 58
+    BATTLE_MENU_ITEM_X_TOSS = 59
+    BATTLE_MART_PC_ITEM = 60  # number intentionally left blank
+    BATTLE_MART_PC_ITEM_CANCEL = 61
+    BATTLE_MENU_RUN = 62
 
-    MENU_YES = 61
-    MENU_NO = 62
+    MENU_YES = 63
+    MENU_NO = 64
 
-    PC_SOMEONE_WITHDRAW = 63
-    PC_SOMEONE_DEPOSIT = 64
-    PC_SOMEONE_RELEASE = 65
-    PC_SOMEONE_CHANGE_BOX = 66
-    PC_SOMEONE_EXIT = 67
+    PC_SOMEONE_WITHDRAW = 65
+    PC_SOMEONE_DEPOSIT = 66
+    PC_SOMEONE_RELEASE = 67
+    PC_SOMEONE_CHANGE_BOX = 68
+    PC_SOMEONE_EXIT = 69
 
-    PC_SELF_WITHDRAW_ITEM = 68
-    PC_SELF_DEPOSIT_ITEM = 69
-    PC_SELF_TOSS_ITEM = 70
-    PC_SELF_EXIT = 71
+    PC_SELF_WITHDRAW_ITEM = 70
+    PC_SELF_DEPOSIT_ITEM = 71
+    PC_SELF_TOSS_ITEM = 72
+    PC_SELF_EXIT = 73
 
-    ITEM_1 = 72
-    ITEM_2 = 73
-    ITEM_3 = 74
-    ITEM_4 = 75
-    ITEM_5 = 76
-    ITEM_6 = 77
-    ITEM_7 = 78
-    ITEM_8 = 79
-    ITEM_9 = 80
-    ITEM_10 = 81
-    ITEM_11 = 82
-    ITEM_12 = 83
-    ITEM_13 = 84
-    ITEM_14 = 85
-    ITEM_15 = 86
-    ITEM_16 = 87
-    ITEM_17 = 88
-    ITEM_18 = 89
-    ITEM_19 = 90
-    ITEM_20 = 91
-    ITEM_RANGE_ERROR = 92
-    ITEM_QUANTITY = 93
+    ITEM_1 = 74
+    ITEM_2 = 75
+    ITEM_3 = 76
+    ITEM_4 = 77
+    ITEM_5 = 78
+    ITEM_6 = 79
+    ITEM_7 = 80
+    ITEM_8 = 81
+    ITEM_9 = 82
+    ITEM_10 = 83
+    ITEM_11 = 84
+    ITEM_12 = 85
+    ITEM_13 = 86
+    ITEM_14 = 87
+    ITEM_15 = 88
+    ITEM_16 = 89
+    ITEM_17 = 90
+    ITEM_18 = 91
+    ITEM_19 = 92
+    ITEM_20 = 93
+    ITEM_RANGE_ERROR = 94
+    ITEM_QUANTITY = 95
+
+    START_MENU_LOADING = 96
 
 
 BATTLE_MENU_STATES = {
@@ -170,9 +174,11 @@ BATTLE_MENU_STATES = {
     RedRamMenuValues.SELECT_POKEMON_4,
     RedRamMenuValues.SELECT_POKEMON_5,
     RedRamMenuValues.SELECT_POKEMON_6,
-    RedRamMenuValues.SELECT_STATS,
+    RedRamMenuValues.MENU_SELECT_STATS,
     RedRamMenuValues.MENU_SELECT_SWITCH,
     RedRamMenuValues.MENU_SELECT_CANCEL,
+    RedRamMenuValues.BATTLE_SELECT_STATS,
+    RedRamMenuValues.BATTLE_SELECT_SWITCH,
     RedRamMenuValues.BATTLE_MENU_ITEM,
     RedRamMenuValues.BATTLE_MENU_ITEM_X_USE,
     RedRamMenuValues.BATTLE_MENU_ITEM_X_TOSS,
@@ -220,8 +226,8 @@ TEXT_MENU_CURSOR_LOCATIONS = {
     RedRamMenuKeys.BATTLE_ROSTER_PKMN_4: RedRamMenuValues.SELECT_POKEMON_4,
     RedRamMenuKeys.BATTLE_ROSTER_PKMN_5: RedRamMenuValues.SELECT_POKEMON_5,
     RedRamMenuKeys.BATTLE_ROSTER_PKMN_6: RedRamMenuValues.SELECT_POKEMON_6,
-    RedRamMenuKeys.BATTLE_ROSTER_STATS: RedRamMenuValues.SELECT_STATS,
-    RedRamMenuKeys.BATTLE_ROSTER_SWITCH: RedRamMenuValues.MENU_SELECT_SWITCH,
+    RedRamMenuKeys.BATTLE_MON_SUB_SELECT_1: RedRamMenuValues.MENU_SELECT_STATS,
+    RedRamMenuKeys.BATTLE_MON_SUB_SELECT_2: RedRamMenuValues.MENU_SELECT_SWITCH,
     RedRamMenuKeys.BATTLE_ROSTER_CANCEL: RedRamMenuValues.MENU_SELECT_CANCEL,
 
     RedRamMenuKeys.BATTLE_MENU_ITEM: RedRamMenuValues.BATTLE_MENU_ITEM,
