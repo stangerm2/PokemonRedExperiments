@@ -18,8 +18,11 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+
+        self.action_memory = None
+        self.game_state_memory = None
+
         # Define CNN architecture for spatial inputs
-	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
@@ -27,37 +30,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Fully connected layer for coordinates
-        self.fc_coordinates = nn.Sequential(
-            nn.Linear(3 * 7, features_dim),  # 3 * 7 matrix binary enc, repeated 3 times, (TODO: TRy plus 7 actions)
-            nn.ReLU(),
-            nn.Flatten()
+        self.coordinates_fc = nn.Sequential(
+            nn.Linear(3 * 7, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.ReLU()
         )
 
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
-        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)  # TODO: There is a little buffer left in the game_state that can be shaved off later
+        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
-        action_game_input_size = (7 * 8) + (117 * 8)  # 7 actions, 117 game states, 8 embeddings
+        # LSTM layers for action and game state embeddings
+        self.action_lstm = nn.LSTM(input_size=56, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size=936, hidden_size=features_dim, batch_first=True)
 
-        self.fc_action_game_state = nn.Sequential(
-            nn.Linear(action_game_input_size, features_dim),
-            nn.ReLU()
-        )
-
-        self.fc_explore = nn.Sequential(
-            nn.Linear(848, features_dim),
-            nn.ReLU()
-        )
-
-        #cnn_output_dim = (16 * 7 * 7) + (7 * 3) + (7 * 8) + (117 * 8) 
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(128, features_dim),
+            nn.Linear(976, features_dim),
             nn.ReLU()
         )
 
     def forward(self, observations):
         batch_size = observations["visited"].size(0)  # Get dynamic batch size from screen
+        device = observations["screen"].device  # Assuming 'screen' is part of your observations
 
         combined_input = torch.cat([observations["screen"].unsqueeze(1),
                                     observations["visited"].unsqueeze(1),
@@ -66,29 +60,60 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
 
-        # Explicitly use batch_size for reshaping
-        action_input = self.action_embedding(observations["action"].int()).view(batch_size, -1)
-        game_state_input = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
-
-        # Action & Game State are tightly coupled, so concat and run through a FCL
-        # TODO: Test w/ RNN, very important to remember past action sequences
-        action_game_input = torch.cat([action_input, game_state_input], dim=1)
-        action_game_features = self.fc_action_game_state(action_game_input)
-
         # Process 'coordinates' and pass through fully connected layer
         coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_features = self.fc_coordinates(coordinates_input)
+        coordinates_features = self.coordinates_fc(coordinates_input)
 
-        explore_input = torch.cat([screen_features, coordinates_features], dim=1)
-        explore_features = self.fc_explore(explore_input)
+        # Explicitly use batch_size for reshaping
+        action_input = self.action_embedding(observations["action"].int()).view(batch_size, -1).unsqueeze(0).to(device)
+        game_state_input = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1).unsqueeze(0).to(device)
+
+        # Initialize hidden states if None
+        if self.action_memory is None:
+            self.action_memory = (torch.zeros(1, 1, self.features_dim, device=device),
+                                  torch.zeros(1, 1, self.features_dim, device=device))
+
+        if self.game_state_memory is None:
+            self.game_state_memory = (torch.zeros(1, 1, self.features_dim, device=device),
+                                      torch.zeros(1, 1, self.features_dim, device=device))
+
+        # Process through LSTMs
+        _, self.action_memory = self.action_lstm(action_input, self.action_memory)
+        _, self.game_state_memory = self.game_state_lstm(game_state_input, self.game_state_memory)
+
+        self._detach_hidden_states()
+
+        # Extract LSTM final states
+        action_lstm_features = self.action_memory[0].squeeze(0).squeeze(0)
+        game_state_lstm_features = self.game_state_memory[0].squeeze(0).squeeze(0)
+        action_lstm_features = action_lstm_features.unsqueeze(0).repeat(batch_size, 1)
+        game_state_lstm_features = game_state_lstm_features.unsqueeze(0).repeat(batch_size, 1)
 
         combined_features = torch.cat([
-            explore_features,
-            action_game_features
+            screen_features,
+            coordinates_features,
+            action_lstm_features, 
+            game_state_lstm_features
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
         return self.fc_layers(combined_features)
+    
+    def _detach_hidden_states(self):
+        # Detach both hidden state and cell state
+        hidden_state, cell_state = self.action_memory
+        hidden_state = hidden_state.detach()
+        cell_state = cell_state.detach()
+
+        # Reconstruct the tuple
+        self.action_memory = (hidden_state, cell_state)
+
+        hidden_state, cell_state = self.game_state_memory
+        hidden_state = hidden_state.detach()
+        cell_state = cell_state.detach()
+
+        # Reconstruct the tuple
+        self.game_state_memory = (hidden_state, cell_state)
 
 
 def make_env(thread_id, env_conf, seed=0):
@@ -122,7 +147,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
