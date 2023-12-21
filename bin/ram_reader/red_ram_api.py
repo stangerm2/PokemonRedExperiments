@@ -191,7 +191,8 @@ class Battle:
         # Redundant to Pokemon Party info
         # level = self.env.ram_interface.read_memory(PLAYERS_POKEMON_LEVEL)
         # hp = (self.env.ram_interface.read_memory(PLAYERS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(PLAYERS_POKEMON_HP[1])
-        # type = [self.env.ram_interface.read_memory(val) for val in PLAYERS_POKEMON_TYPES]
+        #type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + pokemon * PARTY_OFFSET)
+        #type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + pokemon * PARTY_OFFSET)
         # status = self.env.ram_interface.read_memory(PLAYERS_POKEMON_STATUS)
         attack_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_ATTACK_MODIFIER)
         defense_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_DEFENSE_MODIFIER)
@@ -291,6 +292,19 @@ class Battle:
                 alive_pokemon += 1 
 
         return alive_pokemon
+    
+    def get_battle_type_hint(self): 
+        if not self.get_battle_type():
+            return 0
+
+        pokemon = self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
+        player_type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + pokemon * PARTY_OFFSET)
+        player_type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + pokemon * PARTY_OFFSET)
+        enemy_type_1 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0])
+        enemy_type_2 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
+
+        return (POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_2), 1) *
+                POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_2), 1))
 
 
 class Items:

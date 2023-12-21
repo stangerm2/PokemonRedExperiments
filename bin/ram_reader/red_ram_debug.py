@@ -55,8 +55,9 @@ def get_battle_str(game):
         player_stats = game.battle.get_player_fighting_pokemon_dict()
         enemy_stats = _pokemon_dict_pretty_str([game.battle.get_enemy_fighting_pokemon_dict()])
         turns = game.battle.get_battle_turn_info_dict()
+        type_hint = game.battle.get_battle_type_hint()
 
-        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nplayer_stats: {player_stats} \nenemy_stats: {enemy_stats} \nturns: {turns}'
+        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nplayer_stats: {player_stats} \nenemy_stats: {enemy_stats} \ntype_hint: {type_hint}\nturns: {turns}'
 
 def get_map_str(game):
         location = game.map.get_current_location()
