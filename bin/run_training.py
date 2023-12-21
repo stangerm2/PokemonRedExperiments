@@ -18,8 +18,6 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
-        self.hidden_state = None
-
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
@@ -29,9 +27,10 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Fully connected layer for coordinates
-        self.fc_explore = nn.Sequential(
-            nn.Linear(3 * 7 * 3, features_dim),  # 3 * 7 matrix binary enc, repeated 3 times, (TODO: TRy plus 7 actions)
-            nn.ReLU()
+        self.fc_coordinates = nn.Sequential(
+            nn.Linear(3 * 7, features_dim),  # 3 * 7 matrix binary enc, repeated 3 times, (TODO: TRy plus 7 actions)
+            nn.ReLU(),
+            nn.Flatten()
         )
 
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
@@ -39,20 +38,21 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         action_game_input_size = (7 * 8) + (117 * 8)  # 7 actions, 117 game states, 8 embeddings
 
-        # RNN layer
-        self.rnn = nn.GRU(input_size=action_game_input_size, hidden_size=8, batch_first=True)
-
         self.fc_action_game_state = nn.Sequential(
-            nn.Linear(8, features_dim),
+            nn.Linear(action_game_input_size, features_dim),
             nn.ReLU()
         )
 
-        # TODO: Why is this wrong
-        cnn_output_dim = (16 * 7 * 7) + (7 * 3) + (7 * 8) + (117 * 8) 
+        self.fc_explore = nn.Sequential(
+            nn.Linear(848, features_dim),
+            nn.ReLU()
+        )
+
+        #cnn_output_dim = (16 * 7 * 7) + (7 * 3) + (7 * 8) + (117 * 8) 
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(912, features_dim),
+            nn.Linear(128, features_dim),
             nn.ReLU()
         )
 
@@ -73,21 +73,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Action & Game State are tightly coupled, so concat and run through a FCL
         # TODO: Test w/ RNN, very important to remember past action sequences
         action_game_input = torch.cat([action_input, game_state_input], dim=1)
-        action_game_rnn, self.hidden_state = self.rnn(action_game_input, self.hidden_state)  # RNN Layer
-        action_game_rnn = action_game_rnn.unsqueeze(1)  # Add an extra dimension
-        action_game_rnn = action_game_rnn[:, -1, :]  # Selecting the output of the last time step
-        action_game_features = self.fc_action_game_state(action_game_rnn)
-
-        print(self.hidden_state)
+        action_game_features = self.fc_action_game_state(action_game_input)
 
         # Process 'coordinates' and pass through fully connected layer
         coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_features = self.fc_explore(coordinates_input.repeat(1, 3))
+        coordinates_features = self.fc_coordinates(coordinates_input)
+
+        explore_input = torch.cat([screen_features, coordinates_features], dim=1)
+        explore_features = self.fc_explore(explore_input)
 
         combined_features = torch.cat([
-            screen_features,
-            coordinates_features,
-            action_game_features, 
+            explore_features,
+            action_game_features
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
@@ -177,7 +174,7 @@ if __name__ == '__main__':
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, 
         #                   "features_extractor_kwargs": {"features_dim": 64}},
         model = PPO("MultiInputPolicy", env, ent_coef=0.01,
-                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.998,  policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
+                    verbose=1, n_steps=512, batch_size=512, n_epochs=3, gamma=0.998,  policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)
