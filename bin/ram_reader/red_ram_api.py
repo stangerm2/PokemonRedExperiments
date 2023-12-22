@@ -82,6 +82,8 @@ class Game:
             RedRamMenuValues.START_MENU_SAVE: {WindowEvent.PRESS_BUTTON_A},
             RedRamMenuValues.START_MENU_OPTION: {WindowEvent.PRESS_BUTTON_A},
             RedRamMenuValues.START_MENU_QUIT: {WindowEvent.PRESS_BUTTON_A},
+            RedRamMenuValues.MENU_SELECT_STATS: {WindowEvent.PRESS_BUTTON_A},
+            RedRamMenuValues.BATTLE_SELECT_STATS: {WindowEvent.PRESS_BUTTON_A},
             RedRamMenuValues.PC_OAK: {WindowEvent.PRESS_BUTTON_A},
             RedRamSubMenuValues.PC_SOMEONE_CONFIRM_STATS: {WindowEvent.PRESS_BUTTON_A},
             RedRamSubMenuValues.PC_SOMEONE_CHANGE_BOX: {WindowEvent.PRESS_BUTTON_A},

@@ -58,14 +58,13 @@ def initialize_observation_space(extra_buttons):
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
             "action": spaces.Discrete(7),
-            #"p2p": spaces.MultiBinary(150),
 
             # Game:
             "game_state": spaces.Discrete(117),
         }
     )
 
-'''            "move_allowed": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.uint8),
+'''            
 
             # Player:
             "pokemon_roster": spaces.Box(low=0, high=255, shape=(6, 20), dtype=np.uint8),
@@ -209,7 +208,6 @@ class RedGymEnv(Env):
             "walkable": self.support.map.walkable,
             "action": self.gameboy.action_history,
             "coordinates": self.support.map.coordinates,
-            #"p2p" : self.support.map.tester.p2p_obs,
 
             # Game:
             "game_state": self.game.get_game_state(),
@@ -217,7 +215,7 @@ class RedGymEnv(Env):
 
         return observation
     
-    '''            "move_allowed": np.array([1], dtype=np.uint8), # TODO: Need's integration w/ API
+    '''            
 
             # Player:
             "pokemon_roster": self.game.player.get_player_lineup_arr(),

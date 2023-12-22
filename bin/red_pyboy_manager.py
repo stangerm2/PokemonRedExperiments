@@ -19,7 +19,7 @@ def pyboy_init_actions(extra_buttons):
     if extra_buttons:
         valid_actions.extend([
             WindowEvent.PRESS_BUTTON_START,
-            WindowEvent.PASS
+            #WindowEvent.PASS
         ])
 
     return valid_actions
@@ -39,6 +39,8 @@ def pyboy_term_actions(action):
             return WindowEvent.RELEASE_BUTTON_A
         case WindowEvent.PRESS_BUTTON_B:
             return WindowEvent.RELEASE_BUTTON_B
+        case WindowEvent.PRESS_BUTTON_START:
+            return WindowEvent.RELEASE_BUTTON_START
         case _:
             return WindowEvent.PASS
 
@@ -52,6 +54,7 @@ class PyBoyManager:
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
         self.action_history = np.zeros((1,), dtype=np.uint8)
+        self.move_accepted = True
         
         self.setup_pyboy()
 
@@ -85,10 +88,11 @@ class PyBoyManager:
     def _read_bit(self, addr, bit: int) -> bool:
         return bin(256 + self.get_memory_value(addr))[-bit - 1] == '1'
     
-    def _update_action_obs(self, action):
+    def _update_action_obs(self, input):
         # NOTE: If action history is wanted, needs testing
         # self.action_history = np.roll(self.action_history, 1)
-        self.action_history[0] = action
+        
+        self.action_history[0] = input
 
     def run_dpad_cmd(self, action, termination_action):
         if not self.env.save_video and self.env.headless:
@@ -140,15 +144,22 @@ class PyBoyManager:
         action = self.valid_actions[input]
         termination_action = pyboy_term_actions(action)
 
+        # TODO: This was a bug to start with using action WindowsEvent Enum over input const int. The transformation of 0-6 action to 1-7 in
+        # a jumbled order though causes a 2x exploration increase. It'd be good to figure out another way to introduce the noise, but for now leaving this as is.
         self._update_action_obs(action)
+
+        if not self.env.game.allow_menu_selection(action):
+            self.move_accepted = False
+            return
 
         #if self.env.debug:
         #    print(f'\n\naction: {WindowEvent(action).__str__()}')
         #    print(self.action_history)
 
+        # Pass counts as running a cmd for terms of assigning reward
         if termination_action == WindowEvent.PASS:
             print(f'ignoring command')
-            return
-
-        self.run_dpad_cmd(action, termination_action)
+            return True
         
+        self.run_dpad_cmd(action, termination_action)
+        self.move_accepted = True

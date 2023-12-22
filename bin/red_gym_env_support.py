@@ -52,7 +52,7 @@ class RedGymEnvSupport:
             if self.env.debug:
                 game_debug = get_debug_str(self.env.game)
                 # os.system('clear')
-                print(f'\r\n\naction: {WindowEvent(self.env.gameboy.action_history[-1]).__str__()}\n{self.map.location_history[-1]}\n\n{game_debug}\n\n{prog_string}', end='', flush=True)
+                print(f'\r\n\naction: {self.env.gameboy.action_history[-1]}\nMove Allowed(REAL): {self.env.gameboy.move_accepted}\n{self.map.location_history[-1]}\n\n{game_debug}\n\n{prog_string}', end='', flush=True)
             else:
                 print(f'\r{prog_string}', end='', flush=True)
 
