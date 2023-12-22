@@ -32,12 +32,20 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layer for coordinates
         self.coordinates_fc = nn.Sequential(
-            nn.Linear(3 * 7, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.Linear(3 * 7 + 8 * 8, features_dim),  # Flattened size of coordinates, repeated 3 times
             nn.ReLU()
         )
 
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
+<<<<<<< Updated upstream
+=======
+
+        self.action_game_fc = nn.Sequential(
+            nn.Linear(8 * 8 + 117 * 8, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.ReLU()
+        )
+>>>>>>> Stashed changes
 
         # LSTM layers for action and game state embeddings
         self.coord_lstm = nn.LSTM(input_size=21, hidden_size=features_dim, batch_first=True)
@@ -47,7 +55,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
+<<<<<<< Updated upstream
             nn.Linear(976, features_dim),
+=======
+            nn.Linear(912, features_dim),
+>>>>>>> Stashed changes
             nn.ReLU()
         )
 
@@ -63,13 +75,23 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input)
 
+        action_input = self.action_embedding(observations["action"].int()).view(batch_size, -1)
+        game_state_input = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
+        action_game_features = self.action_game_fc(torch.cat([action_input, game_state_input], dim=1))
+
         # Process 'coordinates' and pass through fully connected layer
+<<<<<<< Updated upstream
         coordinates_input = observations["coordinates"].view(batch_size, -1).unsqueeze(0).to(device)
         #coordinates_features = self.coordinates_fc(coordinates_input)
 
         # Explicitly use batch_size for reshaping
         action_input = self.action_embedding(observations["action"].int()).view(batch_size, -1).unsqueeze(0).to(device)
         game_state_input = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1).unsqueeze(0).to(device)
+=======
+        coordinates_input = observations["coordinates"].view(batch_size, -1)
+        coordinates_features = self.coordinates_fc(torch.cat([coordinates_input, action_input], dim=1))
+
+>>>>>>> Stashed changes
 
         # Process through LSTMs
         _, self.coordinate_memory = self.coord_lstm(coordinates_input, self.coordinate_memory)
@@ -89,8 +111,12 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         combined_features = torch.cat([
             screen_features,
             coordinates_features,
+<<<<<<< Updated upstream
             action_lstm_features, 
             game_state_lstm_features
+=======
+            action_game_features
+>>>>>>> Stashed changes
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
