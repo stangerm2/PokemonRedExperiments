@@ -61,14 +61,24 @@ def initialize_observation_space(extra_buttons):
 
             # Game:
             "game_state": spaces.Discrete(117),
+
+            # Player:
+            "pokemon_roster": spaces.Box(low=0, high=1, shape=(6, 20), dtype=np.float32),
+            #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+
+            # Battle
+            "battle_type": spaces.Box(low=0, high=3, shape=(1,), dtype=np.uint8),
+            "enemies_left": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
+            "player_stats": spaces.Box(low=0, high=255, shape=(7,), dtype=np.uint8),
+            "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
+            "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),
+            "type_hint": spaces.Box(low=0, high=4, shape=(1,), dtype=np.uint8),
         }
     )
 
 '''            
 
-            # Player:
-            "pokemon_roster": spaces.Box(low=0, high=255, shape=(6, 20), dtype=np.uint8),
-            "badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
+
 
             # Items
             "bag_ids": spaces.Box(low=0, high=255, shape=(20,), dtype=np.uint8),
@@ -83,12 +93,7 @@ def initialize_observation_space(extra_buttons):
             "audio": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
             "pokemart_items": spaces.Box(low=0, high=255, shape=(10,), dtype=np.uint8),
 
-            # Battle
-            "battle_type": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
-            "enemies_left": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
-            "player_stats": spaces.Box(low=0, high=255, shape=(7,), dtype=np.uint8),
-            "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
-            "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),'''
+'''
 
 
 
@@ -130,14 +135,14 @@ class RedGymEnv(Env):
         np.set_printoptions(linewidth=np.inf)
         # assert len(initialize_observation_space()) == len(self._get_observation())
 
-    def reset(self, seed=None):
+    def reset(self, seed=0):
         self.seed = seed
         self._reset_env_state()
 
         return self._get_observation(), {}
 
     def _reset_env_state(self):
-        self.init_state = 'checkpoints_pallet/pokemon_ai_' + str(random.randint(2, 22))
+        self.init_state = 'checkpoints_pallet/pokemon_ai_' + str(random.Random(self.seed).randint(2, 22))
 
         self.support = RedGymEnvSupport(self)
         self.map = RedGymMap(self)
@@ -211,15 +216,23 @@ class RedGymEnv(Env):
 
             # Game:
             "game_state": self.game.get_game_state(),
+
+            # Player:
+            "pokemon_roster": self.support.normalize_np_array(self.game.player.get_player_lineup_arr()),
+            #"badges": self.game.player.get_badges(),
+
+            # Battle
+            "battle_type": np.array([self.game.battle.get_battle_type()], dtype=np.uint8),
+            "enemies_left": np.array([self.game.battle.get_battles_pokemon_left()], dtype=np.uint8),
+            "player_stats": self.game.battle.get_player_fighting_pokemon_arr(),
+            "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
+            "turn_info": self.game.battle.get_battle_turn_info_arr(),
+            "type_hint": np.array([self.game.battle.get_battle_type_hint()], dtype=np.uint8),
         }
 
         return observation
     
     '''            
-
-            # Player:
-            "pokemon_roster": self.game.player.get_player_lineup_arr(),
-            "badges": self.game.player.get_badges(),
 
             # Items
             "bag_ids": self.game.items.get_bag_item_ids(),
@@ -234,12 +247,7 @@ class RedGymEnv(Env):
             "audio": np.array([self.game.world.get_playing_audio_track()], dtype=np.uint8),
             "pokemart_items": self.game.world.get_pokemart_options(),
 
-            # Battle
-            "battle_type": np.array([self.game.battle.get_battle_type()], dtype=np.uint8),
-            "enemies_left": np.array([self.game.battle.get_battles_pokemon_left()], dtype=np.uint8),
-            "player_stats": self.game.battle.get_player_fighting_pokemon_arr(),
-            "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
-            "turn_info": self.game.battle.get_battle_turn_info_arr(),'''
+'''
 
     def _update_rewards(self, action):
         state_scores = {

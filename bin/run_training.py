@@ -33,8 +33,25 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU()
         )
 
+        # Game Embeddings
         self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
         self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
+
+        # Player FCL's
+        self.pokemon_roster_fc = nn.Sequential(
+            nn.Linear(6 * 20, 64),  # Adjust the output size as needed
+            nn.ReLU(),
+            nn.Linear(64, features_dim),
+            nn.ReLU()
+        )
+
+        # Battle Embeddings
+        self.battle_type_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.enemies_left_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
+        self.player_stats_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.enemy_stats_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.turn_info_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.type_hint_embedding = nn.Embedding(num_embeddings=5, embedding_dim=8)
 
 
         # Calculate the output size of the last CNN layer
@@ -42,12 +59,13 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1840, features_dim),
+            nn.Linear(2112, features_dim),
             nn.ReLU()
         )
 
     def forward(self, observations):
-        batch_size = observations["visited"].size(0)  # Get dynamic batch size from screen
+        # Explicitly use batch_size for reshaping, after n_steps there will be a big batch
+        batch_size = observations["visited"].size(0) 
 
         combined_input = torch.cat([observations["screen"].unsqueeze(1),
                                     observations["visited"].unsqueeze(1),
@@ -60,19 +78,34 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         coordinates_input = observations["coordinates"].view(batch_size, -1)
         coordinates_features = self.coordinates_fc(coordinates_input)
 
-        # Explicitly use batch_size for reshaping
-        # TODO: Concat and RNN
+        # Game Embeddings
         action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
         game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
 
-        # TODO: RNN
-        #position_features = self.game_state_embedding(observations["position"].int()).view(batch_size, -1)
+        # Player Embeddings
+        pokemon_roster_flat = observations["pokemon_roster"].view(batch_size, -1)  # Flatten the matrix
+        pokemon_roster_features = self.pokemon_roster_fc(pokemon_roster_flat)
+
+        # Battle Embeddings
+        battle_type_features = self.battle_type_embedding(observations["battle_type"].int()).view(batch_size, -1)
+        enemies_left_features = self.enemies_left_embedding(observations["enemies_left"].int()).view(batch_size, -1)
+        player_stats_features = self.player_stats_embedding(observations["player_stats"].view(-1).int()).view(batch_size, -1)
+        enemy_stats_features = self.enemy_stats_embedding(observations["enemy_stats"].view(-1).int()).view(batch_size, -1)
+        turn_info_features = self.turn_info_embedding(observations["turn_info"].view(-1).int()).view(batch_size, -1)
+        type_hint_features = self.type_hint_embedding(observations["type_hint"].int()).view(batch_size, -1)
 
         combined_features = torch.cat([
             screen_features,
             coordinates_features,
             action_features, 
-            game_state_features
+            game_state_features,
+            pokemon_roster_features,
+            battle_type_features,
+            enemies_left_features,
+            player_stats_features,
+            enemy_stats_features,
+            turn_info_features,
+            type_hint_features
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size

@@ -325,7 +325,7 @@ class Battle:
         enemy_type_1 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0])
         enemy_type_2 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
 
-        return (POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_2), 1) *
+        return (POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_2), 1) +
                 POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_2), 1))
 
 
