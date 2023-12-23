@@ -54,6 +54,11 @@ def clear_screen():
                 os.system('cls')
         else:
                 os.system('clear')
+save_file = None
+#save_file = "checkpoints_battles/pokemon_ai_32"
+if pyboy and save_file:
+        with open(save_file, "rb") as f:
+                pyboy.load_state(f)
 
 save_itr = 0
 count = 0

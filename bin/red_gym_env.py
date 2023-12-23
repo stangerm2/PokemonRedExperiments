@@ -136,15 +136,15 @@ class RedGymEnv(Env):
         # assert len(initialize_observation_space()) == len(self._get_observation())
 
     def reset(self, seed=0):
-        self.seed = seed
         self._reset_env_state()
 
         return self._get_observation(), {}
 
     def _reset_env_state(self):
-        self.init_state = 'checkpoints_pallet/pokemon_ai_' + str(random.Random(self.seed).randint(2, 22))
-
         self.support = RedGymEnvSupport(self)
+        self.init_state = self.support.choose_random_game_load()
+        print(f'Loading: {self.init_state}')
+
         self.map = RedGymMap(self)
         self.player = RedGymPlayer(self)
         self.battle = RedGymBattle(self)
@@ -182,7 +182,7 @@ class RedGymEnv(Env):
 
     def _run_post_action_steps(self):
         self.support.map.save_post_action_pos()
-        self.battle.inc_move_count()
+        self.battle.save_post_action_battle()
 
     def get_check_if_done(self):
         return self.support.check_if_done()
@@ -193,13 +193,17 @@ class RedGymEnv(Env):
         self.agent_stats.append({
             'reward': self.total_reward,
             # 'last_action': action,
-            'discovered': self.support.map.tester.steps_discovered,
-            'collisions': self.support.map.tester.collisions,
+            'discovered': self.support.map.steps_discovered,
+            'collisions': self.support.map.collisions,
             #'badges' : badges[0],
-            #'wild_mon_killed': self.battle.wild_pokemon_killed,
+            'wild_mon_killed': self.battle.wild_pokemon_killed,
             #'trainer_mon_killed': self.battle.trainer_pokemon_killed,
             #'gym_mon_killed': self.battle.gym_pokemon_killed,
             #'died': self.battle.died,
+            'battle_action_avg': self.battle.get_avg_battle_action_avg(),
+            'battle_turn_avg': self.battle.get_avg_battle_turn_avg(),
+            'k/d': self.battle.get_kill_to_death(),
+            'dmg_ratio': self.battle.get_damage_done_vs_taken(),
             #'heal': len(self.map.pokecenter_history) - 1,
         })
 
@@ -251,10 +255,10 @@ class RedGymEnv(Env):
 
     def _update_rewards(self, action):
         state_scores = {
-            'pallet_town_explorer': self.support.map.tester.pallet_town_explorer_reward(),
+            # 'pallet_town_explorer': self.support.map.tester.pallet_town_explorer_reward(),
             # 'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
-            #'explore': self.support.map.get_exploration_reward(),
-            #'battle': self.battle.get_battle_reward(),
+            'explore': self.support.map.get_exploration_reward(),
+            'battle': self.battle.get_battle_reward() * 3.0,
             #'badges': self.player.get_badge_reward(),
             #'heal' : self.support.map.get_pokecenter_reward(),
         }

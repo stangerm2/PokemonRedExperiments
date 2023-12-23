@@ -47,11 +47,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Battle Embeddings
         self.battle_type_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.enemies_left_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
+        self.enemies_left_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.player_stats_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.enemy_stats_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.turn_info_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.type_hint_embedding = nn.Embedding(num_embeddings=5, embedding_dim=8)
+        self.type_hint_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
 
 
         # Calculate the output size of the last CNN layer
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 6  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
-    # env = DummyVecEnv([lambda: RedGymEnv(config=env_config)])
+    # env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    # file_name = '../saved_runs/session_2700a5a5/poke_94470144_steps'
+    file_name = '../saved_runs/session_2b3f830f/poke_35553280_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

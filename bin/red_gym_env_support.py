@@ -1,4 +1,5 @@
 import math
+import random
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,6 +31,21 @@ class RedGymEnvSupport:
 
         self.env = env
         self.map = RedGymMap(self.env)
+        random.seed(self.env.thread_id)
+
+    def choose_random_game_load(self):
+        save_file = "checkpoints_battles/"
+
+        # pick a random starter string bulbasaur, charmander, squirtle
+        starters = [
+            'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
+            'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
+            'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
+            ]
+        save_file += random.choice(starters)
+
+        return save_file
+
 
     def save_screenshot(self, image=None):
         x_pos, y_pos, map_n = self.map.get_current_location()
@@ -46,12 +62,15 @@ class RedGymEnvSupport:
     def check_if_done(self):
         return self.env.step_count >= self.env.max_steps
 
-    def save_and_print_info(self, done):
+    def save_and_print_info(self, done, save_debug = False):
         if self.env.print_rewards:
             prog_string = self._construct_progress_string()
-            if self.env.debug:
+            if save_debug:
                 game_debug = get_debug_str(self.env.game)
+                self.save_debug_string(game_debug)
+            elif self.env.debug:
                 # os.system('clear')
+                game_debug = get_debug_str(self.env.game)
                 print(f'\r\n\naction: {self.env.gameboy.action_history[-1]}\nMove Allowed(REAL): {self.env.gameboy.move_accepted}\n{self.map.location_history[-1]}\n\n{game_debug}\n\n{prog_string}', end='', flush=True)
             else:
                 print(f'\r{prog_string}', end='', flush=True)
@@ -70,7 +89,7 @@ class RedGymEnvSupport:
         debug_path.mkdir(exist_ok=True)
 
         # Construct the full file path
-        file_path = debug_path / f'debug_{self.env.step_count}.txt'
+        file_path = debug_path / f'thread_{self.env.thread_id}_step_{self.env.step_count}.txt'
 
         # Write the output string to the file
         with open(file_path, 'w') as file:
@@ -93,8 +112,6 @@ class RedGymEnvSupport:
         prog_string = f'step: {self.env.step_count:6d}'
         for key, val in self.env.agent_stats[-1].items():
             prog_string += f' {key}: {val:5.2f}'
-        prog_string += f' sum: {self.env.total_reward:5.2f}'
-        prog_string += f' reward: {self.env.total_reward:5.2f}'
         return prog_string
 
     def _print_final_rewards(self):

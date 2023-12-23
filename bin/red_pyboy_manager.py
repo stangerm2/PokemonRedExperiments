@@ -161,5 +161,8 @@ class PyBoyManager:
             print(f'ignoring command')
             return True
         
+        #for i in range(24):
+        #    self.pyboy.tick()
+
         self.run_dpad_cmd(action, termination_action)
         self.move_accepted = True

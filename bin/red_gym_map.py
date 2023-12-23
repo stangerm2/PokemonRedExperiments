@@ -20,6 +20,7 @@ class RedGymMap:
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
         self.steps_discovered = 0
+        self.collisions = 0
         self.pokecenter_history = {0 : True}
 
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
@@ -125,7 +126,7 @@ class RedGymMap:
                     debug_str = ""
                     while len(self.location_history):
                         debug_str += self.location_history.popleft()
-                    self.env.support.save_debug_string(debug_str)
+                    # self.env.support.save_debug_string(debug_str)
                     # assert False
             else:
                 self.new_map = 6
@@ -184,6 +185,10 @@ class RedGymMap:
         if not self.moved_location:
             return 0
         elif (x_pos, y_pos, map_n) in self.visited_pos:
+            if (not (self.env.gameboy.action_history[0] == 5 or self.env.gameboy.action_history[0] == 6) and 
+                self.env.game.get_game_state() ==  self.env.game.GameState.EXPLORING and self.new_map == False):
+                self.collisions += 1
+
             return 0.01
         else:
             self.steps_discovered += 1

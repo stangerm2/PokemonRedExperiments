@@ -127,7 +127,7 @@ class Battle:
     def __init__(self, env):
         self.env = env
         self.in_battle = False
-        self.turns_in_current_battle = 0
+        self.turns_in_current_battle = 1
         self.last_turn_count = 0
         self.battle_done = False
 
@@ -141,7 +141,7 @@ class Battle:
         in_pre_battle = self.is_in_pre_battle()
 
         if not (battle_type or in_pre_battle):
-            self.turns_in_current_battle = 0
+            self.turns_in_current_battle = 1
             self.last_turn_count = 0
             self.in_battle = False
             self.battle_done = False
@@ -207,6 +207,11 @@ class Battle:
     def get_special_battle_type(self):
         return self.env.ram_interface.read_memory(SPECIAL_BATTLE_TYPE)
     
+    def get_player_party_head_hp(self):
+        party_index = self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
+        offset = party_index * PARTY_OFFSET
+        return (self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[1] + offset)
+    
     def get_player_fighting_pokemon_arr(self):
         if not self.get_battle_type():
             return [0x00] * 7
@@ -240,6 +245,9 @@ class Battle:
             'evasion_mod': player_fighting_pokemon[6]
         }
     
+    def get_enemy_head_pokemon_hp(self):
+        return (self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1])
+    
     def get_enemy_fighting_pokemon_arr(self):
         if not self.get_battle_type():
             return [0x00] * 13
@@ -247,7 +255,7 @@ class Battle:
         party_count = self.env.ram_interface.read_memory(ENEMY_PARTY_COUNT)
         pokemon = self.env.ram_interface.read_memory(ENEMYS_POKEMON)
         level = self.env.ram_interface.read_memory(ENEMYS_POKEMON_LEVEL)
-        hp = (self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1])
+        hp = self.get_enemy_head_pokemon_hp()
         type_1 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0])
         type_2 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
         status = self.env.ram_interface.read_memory(ENEMYS_POKEMON_STATUS)
