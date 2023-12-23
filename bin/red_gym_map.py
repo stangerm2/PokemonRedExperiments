@@ -52,28 +52,33 @@ class RedGymMap:
 
 
     def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
-        x_pos_binary = format(x_pos_new, f'0{SCREEN_VIEW_SIZE}b')
-        y_pos_binary = format(y_pos_new, f'0{SCREEN_VIEW_SIZE}b')
-        m_pos_binary = format(n_map_new, f'0{SCREEN_VIEW_SIZE}b')
-    
-        # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
-        for i, bit in enumerate(x_pos_binary):
-            self.coordinates[0][i] = bit
-            #self.screen[SCREEN_VIEW_SIZE][i] = bit
-            #self.visited[SCREEN_VIEW_SIZE][i] = bit
-            #self.walkable[SCREEN_VIEW_SIZE][i] = bit
+        try:
+            x_pos_binary = format(x_pos_new, f'0{SCREEN_VIEW_SIZE}b')
+            y_pos_binary = format(y_pos_new, f'0{SCREEN_VIEW_SIZE}b')
+            m_pos_binary = format(n_map_new, f'0{SCREEN_VIEW_SIZE}b')
+        
+            # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
+            for i, bit in enumerate(x_pos_binary):
+                self.coordinates[0][i] = bit
+                #self.screen[SCREEN_VIEW_SIZE][i] = bit
+                #self.visited[SCREEN_VIEW_SIZE][i] = bit
+                #self.walkable[SCREEN_VIEW_SIZE][i] = bit
 
-        for i, bit in enumerate(y_pos_binary):
-            self.coordinates[1][i] = bit
-            #self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
-            #self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
-            #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
+            for i, bit in enumerate(y_pos_binary):
+                self.coordinates[1][i] = bit
+                #self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
+                #self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
+                #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
 
-        for i, bit in enumerate(m_pos_binary):
-            self.coordinates[2][i] = bit
-            #self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
-            #self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
-            #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
+            for i, bit in enumerate(m_pos_binary):
+                self.coordinates[2][i] = bit
+                #self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
+                #self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
+                #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            self.env.support.save_and_print_info(False, True, True)
+            assert(True)
 
     def _traverse_matrix(self, x_pos_new, y_pos_new, n_map_new, callback):
         center_x = center_y = SCREEN_VIEW_SIZE // 2
@@ -124,8 +129,8 @@ class RedGymMap:
                     self.update_map_stats()
 
                     debug_str = ""
-                    while len(self.location_history):
-                        debug_str += self.location_history.popleft()
+                    #while len(self.location_history):
+                    #    debug_str += self.location_history.popleft()
                     # self.env.support.save_debug_string(debug_str)
                     # assert False
             else:

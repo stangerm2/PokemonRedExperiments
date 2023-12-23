@@ -313,7 +313,7 @@ class Battle:
             return 0 
 
         # Wild mons only have 1 pokemon alive and their status is in diff reg's
-        if self.get_battle_type() == 1: # TODO: Fix enum
+        if self.get_battle_type() == BattleTypes.WILD_BATTLE:
             return int(self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) != 0 or self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1]) != 0)
         
         for i in range(POKEMON_MAX_COUNT):
@@ -335,6 +335,22 @@ class Battle:
 
         return (POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_1, enemy_type_2), 1) +
                 POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_1), 1) * POKEMON_MATCH_TYPES.get((player_type_2, enemy_type_2), 1))
+    
+    def get_enemy_lineup_levels(self):
+        # Wild Pokemon, only ever one
+        if self.get_battle_type() == BattleTypes.WILD_BATTLE:
+            return [self.env.ram_interface.read_memory(ENEMYS_POKEMON_LEVEL)]
+
+        lineup_levels = []
+        for party_index in range(POKEMON_PARTY_SIZE):
+            offset = party_index * ENEMYS_POKEMON_OFFSET
+            level = self.env.ram_interface.read_memory(ENEMYS_POKEMON_INDEX_LEVEL + offset)
+            if level:
+                lineup_levels.append(level)
+            else:
+                break
+
+        return lineup_levels
 
 
 class Items:
@@ -653,8 +669,18 @@ class Player:
         money_bytes = [self.env.ram_interface.read_memory(addr) for addr in PLAYER_MONEY]
         money_hex = ''.join([f'{byte:02x}' for byte in money_bytes])
         money_int = int(money_hex, 10)
-        return np.array([money_int], dtype=np.float32) 
+        return np.array([money_int], dtype=np.float32)
     
-    
+    def get_player_lineup_levels(self):
+        lineup_levels = []
+        for party_index in range(POKEMON_PARTY_SIZE):
+            offset = party_index * PARTY_OFFSET
+            level = self.env.ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
+            if level:
+                lineup_levels.append(level)
+            else:
+                break
+
+        return lineup_levels
 
     

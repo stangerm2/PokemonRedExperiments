@@ -38,9 +38,10 @@ class RedGymEnvSupport:
 
         # pick a random starter string bulbasaur, charmander, squirtle
         starters = [
-            'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
-            'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
-            'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
+            #'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
+            #'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
+            #'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
+            'mt_moon' + '/pokemon_ai_' + str(random.randint(0, 17)),
             ]
         save_file += random.choice(starters)
 
@@ -62,11 +63,15 @@ class RedGymEnvSupport:
     def check_if_done(self):
         return self.env.step_count >= self.env.max_steps
 
-    def save_and_print_info(self, done, save_debug = False):
+    def save_and_print_info(self, done, save_debug = False, print_locations = False):
         if self.env.print_rewards:
             prog_string = self._construct_progress_string()
             if save_debug:
                 game_debug = get_debug_str(self.env.game)
+                if print_locations:
+                    while len(self.map.location_history):
+                        game_debug += self.map.location_history.popleft()
+
                 self.save_debug_string(game_debug)
             elif self.env.debug:
                 # os.system('clear')
@@ -115,7 +120,8 @@ class RedGymEnvSupport:
     def _construct_progress_string(self):
         prog_string = f'step: {self.env.step_count:6d}'
         for key, val in self.env.agent_stats[-1].items():
-            prog_string += f' {key}: {val:5.2f}'
+            prog_string += f' {key}: {val:5.3f}'
+        prog_string += f' decay: {self.env.battle.get_battle_decay():5.3f}'
         return prog_string
 
     def _print_final_rewards(self):

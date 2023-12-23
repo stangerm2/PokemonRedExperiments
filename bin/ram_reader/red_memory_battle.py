@@ -59,6 +59,8 @@ ENEMYS_POKEMON_HP = (0xCFE6, 0xCFE7)  # Enemy's current HP
 ENEMYS_POKEMON_STATUS = 0xCFE9  # Enemy's status effects, Stale out of battle
 ENEMYS_POKEMON_TYPES = (0xCFEA, 0xCFEB)  # Enemy's type, Stale out of battle
 ENEMYS_POKEMON_MOVES = (0xCFED, 0xCFEE, 0xCFEF, 0xCFF0)  # Enemy's moves, Stale out of battle
+ENEMYS_POKEMON_INDEX_LEVEL = 0xD8C5  # Enemy's level, use offset to get all
+ENEMYS_POKEMON_OFFSET = 0x2C
 
 ENEMY_TRAINER_POKEMON_HP = (0xD8A5, 0xD8A6)  # Only valid for trainers/gyms not wild mons. HP doesn't dec until mon is dead, then it's 0
 ENEMY_TRAINER_POKEMON_HP_OFFSET = 0x2C

@@ -75,6 +75,7 @@ def initialize_observation_space(extra_buttons):
             "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
             "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),
             "type_hint": spaces.Box(low=0, high=4, shape=(1,), dtype=np.uint8),
+            "decay": spaces.Box(low=0, high=100, shape=(1,), dtype=np.uint8),
         }
     )
 
@@ -199,6 +200,7 @@ class RedGymEnv(Env):
             'collisions': self.support.map.collisions,
             #'badges' : badges[0],
             'wild_mon_killed': self.battle.wild_pokemon_killed,
+            'trainers_killed': self.battle.trainer_pokemon_killed,
             #'trainer_mon_killed': self.battle.trainer_pokemon_killed,
             #'gym_mon_killed': self.battle.gym_pokemon_killed,
             #'died': self.battle.died,
@@ -236,6 +238,7 @@ class RedGymEnv(Env):
             "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
             "turn_info": self.game.battle.get_battle_turn_info_arr(),
             "type_hint": np.array([self.game.battle.get_battle_type_hint()], dtype=np.uint8),
+            "decay": np.array([self.battle.calc_levels_delta()], dtype=np.uint8),
         }
 
         return observation
