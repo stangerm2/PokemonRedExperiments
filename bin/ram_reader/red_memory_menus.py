@@ -68,7 +68,7 @@ class RedRamMenuKeys:
     BATTLE_MENU_RUN = (0xEF, 0xC4)
     MENU_YES = (0x4F, 0xC4)
     MENU_NO = (0x77, 0xC4)
-    # TODO: Get Nickname state and add it to filter list
+    # TODO: Get Nickname state and add it to filter list (0xC4C0 text nickname key hack?)
 
     MENU_NO_HACK = (0x69, 0xC4)
 

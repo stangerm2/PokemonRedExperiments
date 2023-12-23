@@ -63,7 +63,9 @@ def initialize_observation_space(extra_buttons):
             "game_state": spaces.Discrete(117),
 
             # Player:
-            "pokemon_roster": spaces.Box(low=0, high=1, shape=(6, 20), dtype=np.float32),
+            "pokemon_lineup": spaces.Box(low=0, high=255, shape=(6, 13), dtype=np.uint8),
+            "pokemon_health": spaces.Box(low=0, high=703, shape=(6, 2), dtype=np.int16),
+            "pokemon_stats": spaces.Box(low=0, high=458, shape=(6, 4), dtype=np.int16),
             #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
 
             # Battle
@@ -222,7 +224,9 @@ class RedGymEnv(Env):
             "game_state": self.game.get_game_state(),
 
             # Player:
-            "pokemon_roster": self.support.normalize_np_array(self.game.player.get_player_lineup_arr()),
+            "pokemon_lineup": self.game.player.get_player_lineup_arr(),
+            "pokemon_health": self.game.player.get_player_health_arr(),
+            "pokemon_stats": self.game.player.get_player_stats_arr(),
             #"badges": self.game.player.get_badges(),
 
             # Battle
