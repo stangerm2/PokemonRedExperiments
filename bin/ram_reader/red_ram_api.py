@@ -191,7 +191,7 @@ class Battle:
     
     def win_battle(self):
         # You can only win once per battle, so don't call w/o being ready to process a win otherwise you'll lose capturing it for the battle cycle
-        if (self.in_battle == False or self.battle_done == True or
+        if (self.in_battle == False or self.battle_done == True or self.get_battle_type() == 0 or
             self.get_battles_pokemon_left() != 0 or self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE) == 0):
             return False
         

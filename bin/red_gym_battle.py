@@ -17,9 +17,8 @@ class RedGymBattle:
         self.total_battle_action_cnt = 0
         self.total_battle_turns = 0 
         self.total_battles = 0
-        self.prev_move_in_battle = False
+        self.battle_has_started = False
         self.battle_won = False
-        self.battle_won_sticky = False
         self.total_party_hp_lost = 0
         self.total_enemy_hp_lost = 0
         self.last_party_head_hp = 0
@@ -30,8 +29,7 @@ class RedGymBattle:
             self.last_party_head_hp = 0
             self.last_enemy_head_hp = 0
             self.current_battle_action_cnt = 0
-            self.prev_move_in_battle = False
-            self.battle_won_sticky = False
+            self.battle_has_started = False
 
     def _calc_battle_type_stats(self):
         battle_type = self.env.game.battle.get_battle_type()
@@ -48,14 +46,14 @@ class RedGymBattle:
             print(f'Unknown battle type: {battle_type}')
 
     def _inc_move_count(self):
-        if not self.battle_won_sticky:
+        if not self.env.game.battle.battle_done:
             self.current_battle_action_cnt += 1
             self.total_battle_action_cnt += 1
 
     def _inc_battle_counter(self):
-        if not self.prev_move_in_battle:
+        if not self.battle_has_started:
             self.total_battles += 1
-            self.prev_move_in_battle = True
+            self.battle_has_started = True
 
     def _inc_hp_lost_vs_taken(self):
         if not self.env.game.battle.in_battle:
@@ -81,10 +79,12 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             self._clear_battle_stats()
             return
+        
+        # IN BATTLE: Falls through
 
         self.battle_won = self.env.game.battle.win_battle()  # allows single occurrence won flag per battle, when enemy mon's hp all -> 0
         if self.battle_won:
-            self.battle_won_sticky = True
+            self.env.game.battle.battle_done = True
 
         self._inc_move_count()
         self._inc_battle_counter()
