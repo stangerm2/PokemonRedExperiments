@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../saved_runs/session_392fedad/poke_166592512_steps'
+    #file_name = '../saved_runs/session_de5651e9/poke_16506880_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

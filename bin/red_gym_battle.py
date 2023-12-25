@@ -209,7 +209,7 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             return 0
         elif not self.battle_won:
-            return 0  # 0.30
+            return 0.10
         
         # Won Battle falls though
         battle_type = self.env.game.battle.get_battle_type()
@@ -243,11 +243,11 @@ class RedGymBattle:
     def _menu_selection_reward(self):
         selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
         if selection_count == 1:
-            return 1  # New menu discovered for this turn
+            return 0.05  # New menu discovered for this turn
         elif selection_count < 4:
             return 0
         
-        return max(floor(-0.005 * pow(selection_count, 2)), -10)
+        return max(floor(-0.01 * pow(selection_count, 2)), -50)
             
     def _get_battle_action_reward(self):
         if not self.env.gameboy.a_button_selected():
