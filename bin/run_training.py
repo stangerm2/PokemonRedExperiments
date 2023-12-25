@@ -49,11 +49,10 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.enemy_stats_embedding = nn.Embedding(num_embeddings=256, embedding_dim=6)
         self.turn_info_embedding = nn.Embedding(num_embeddings=256, embedding_dim=6)
         self.type_hint_embedding = nn.Embedding(num_embeddings=256, embedding_dim=4)
-        self.decay_embedding = nn.Embedding(num_embeddings=6, embedding_dim=4)
 
         # Battle FCL's
         self.battle_fc = nn.Sequential(
-            nn.Linear(1690, features_dim),  # Adjust the output size as needed
+            nn.Linear(1686, features_dim),  # Adjust the output size as needed
             nn.ReLU(),
             #nn.Linear(64, features_dim),
             #nn.ReLU()
@@ -96,7 +95,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         enemy_stats_input = self.enemy_stats_embedding(observations["enemy_stats"].view(-1).int()).view(batch_size, -1)
         turn_info_input = self.turn_info_embedding(observations["turn_info"].view(-1).int()).view(batch_size, -1)
         type_hint_input = self.type_hint_embedding(observations["type_hint"].int()).view(batch_size, -1)
-        decay_input = self.decay_embedding(observations["decay"].int()).view(batch_size, -1)
         
         battle_input = torch.cat([
             pokemon_lineup_input,
@@ -108,7 +106,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             enemy_stats_input,  # TODO: Breakout enemy HP
             turn_info_input,
             type_hint_input,
-            decay_input
         ], dim=1)
 
         battle_features = self.battle_fc(battle_input)
@@ -156,7 +153,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         env_config['debug'] = True
@@ -190,7 +187,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../saved_runs/session_97d2fb9d/poke_10158080_steps'
+    #file_name = '../saved_runs/session_392fedad/poke_166592512_steps'
 
     model = None
     checkpoint_exists = exists(file_name + '.zip')

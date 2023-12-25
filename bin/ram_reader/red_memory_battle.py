@@ -74,7 +74,7 @@ ENEMYS_MOVE_ACCURACY = 0xCFD0  # Enemy's Move Accuracy
 ENEMYS_MOVE_MAX_PP = 0xCFD1  # Enemy's Move Max PP
 
 # More detailed Enemy's Pokémon Stats
-ENEMYS_POKEMON_MAX_HP = 0xCFF4  # Enemy's max HP
+ENEMYS_POKEMON_MAX_HP = (0xCFF4, 0xCFF5)  # Enemy's max HP
 ENEMYS_POKEMON_ATTACK = 0xCFF6  # Enemy's attack
 ENEMYS_POKEMON_DEFENSE = 0xCFF8  # Enemy's defense
 ENEMYS_POKEMON_SPEED = 0xCFFA  # Enemy's speed

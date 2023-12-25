@@ -75,7 +75,6 @@ def initialize_observation_space(extra_buttons):
             "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
             "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),
             "type_hint": spaces.Box(low=0, high=4, shape=(1,), dtype=np.uint8),
-            "decay": spaces.Box(low=0, high=100, shape=(1,), dtype=np.uint8),
         }
     )
 
@@ -177,14 +176,15 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return observation, self.total_reward * 0.009, False, step_limit_reached, {}
+        return observation, self.total_reward * 0.0001, False, step_limit_reached, {}
 
 
     def _run_pre_action_steps(self):
-        self.support.map.save_pre_action_pos()
+        self.map.save_pre_action_pos()
+        self.battle.save_pre_action_battle()
 
     def _run_post_action_steps(self):
-        self.support.map.save_post_action_pos()
+        self.map.save_post_action_pos()
         self.battle.save_post_action_battle()
 
     def get_check_if_done(self):
@@ -196,8 +196,8 @@ class RedGymEnv(Env):
         self.agent_stats.append({
             'reward': self.total_reward,
             # 'last_action': action,
-            'discovered': self.support.map.steps_discovered,
-            'collisions': self.support.map.collisions,
+            'discovered': self.map.steps_discovered,
+            'collisions': self.map.collisions,
             #'badges' : badges[0],
             'wild_mon_killed': self.battle.wild_pokemon_killed,
             'trainers_killed': self.battle.trainer_pokemon_killed,
@@ -212,15 +212,15 @@ class RedGymEnv(Env):
         })
 
     def _get_observation(self):
-        self.support.map.update_map_obs()
+        self.map.update_map_obs()
 
         observation = {
             # Game View:
-            "screen": self.support.map.screen,
-            "visited": self.support.map.visited,
-            "walkable": self.support.map.walkable,
+            "screen": self.map.screen,
+            "visited": self.map.visited,
+            "walkable": self.map.walkable,
             "action": self.gameboy.action_history,
-            "coordinates": self.support.map.coordinates,
+            "coordinates": self.map.coordinates,
 
             # Game:
             "game_state": self.game.get_game_state(),
@@ -238,7 +238,6 @@ class RedGymEnv(Env):
             "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
             "turn_info": self.game.battle.get_battle_turn_info_arr(),
             "type_hint": np.array([self.game.battle.get_battle_type_hint()], dtype=np.uint8),
-            "decay": np.array([self.battle.calc_levels_delta()], dtype=np.uint8),
         }
 
         return observation
@@ -264,8 +263,9 @@ class RedGymEnv(Env):
         state_scores = {
             # 'pallet_town_explorer': self.support.map.tester.pallet_town_explorer_reward(),
             # 'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
-            'explore': self.support.map.get_exploration_reward(),
-            'battle': self.battle.get_battle_reward() * 3.0,
+            'explore': self.map.get_exploration_reward(),
+            'battle': self.battle.get_battle_win_reward(),
+            'battle_turn': self.battle.get_battle_action_reward(),
             #'badges': self.player.get_badge_reward(),
             #'heal' : self.support.map.get_pokecenter_reward(),
         }

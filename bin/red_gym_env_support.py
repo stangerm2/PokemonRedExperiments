@@ -30,26 +30,26 @@ class RedGymEnvSupport:
             print('**** RedGymEnvSupport ****')
 
         self.env = env
-        self.map = RedGymMap(self.env)
-        random.seed(self.env.thread_id)
+        random.seed(self.env.thread_id)  # + self.env.reset_count
 
     def choose_random_game_load(self):
         save_file = "checkpoints_battles/"
 
         # pick a random starter string bulbasaur, charmander, squirtle
         starters = [
-            #'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
-            #'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
-            #'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
+            'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
+            'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
+            'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
             'mt_moon' + '/pokemon_ai_' + str(random.randint(0, 17)),
             ]
         save_file += random.choice(starters)
+        #save_file += "bulbasaur/pokemon_ai_23"
 
         return save_file
 
 
     def save_screenshot(self, image=None):
-        x_pos, y_pos, map_n = self.map.get_current_location()
+        x_pos, y_pos, map_n = self.env.map.get_current_location()
 
         if image is None:
             image = self.env.screen.render(reduce_res=False)
@@ -69,8 +69,8 @@ class RedGymEnvSupport:
             if save_debug:
                 game_debug = get_debug_str(self.env.game)
                 if print_locations:
-                    while len(self.map.location_history):
-                        game_debug += self.map.location_history.popleft()
+                    while len(self.env.map.location_history):
+                        game_debug += self.env.map.location_history.popleft()
 
                 self.save_debug_string(game_debug)
             elif self.env.debug:
@@ -78,7 +78,7 @@ class RedGymEnvSupport:
                 game_debug = get_debug_str(self.env.game)
                 print(f'\r\n\naction: {WindowEvent(self.env.gameboy.action_history[-1]).__str__()}\n'
                       f'Move Allowed(REAL): {self.env.gameboy.move_accepted}\n'
-                      f'{self.map.location_history[-1]}\n\n'
+                      f'{self.env.map.location_history[-1]}\n\n'
                       f'{game_debug}\n\n'
                       f'{prog_string}', end='', flush=True)
             else:

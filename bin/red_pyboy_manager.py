@@ -2,7 +2,6 @@ import sys
 import numpy as np
 
 from pyboy import PyBoy, WindowEvent
-from pyboy.logger import log_level
 from red_env_constants import *
 
 
@@ -53,13 +52,13 @@ class PyBoyManager:
         self.env = env
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
+        self.action = None
         self.action_history = np.zeros((1,), dtype=np.uint8)
         self.move_accepted = True
         
         self.setup_pyboy()
 
     def setup_pyboy(self):
-        log_level("ERROR")
         window_type = 'dummy' if self.env.headless else 'SDL2'
         self.pyboy = PyBoy(
             self.env.rom_location,
@@ -91,8 +90,13 @@ class PyBoyManager:
     def _update_action_obs(self, input):
         # NOTE: If action history is wanted, needs testing
         # self.action_history = np.roll(self.action_history, 1)
-        
         self.action_history[0] = input
+
+    def a_button_selected(self):
+        if self.action == WindowEvent.PRESS_BUTTON_A:
+            return True
+        
+        return False
 
     def run_dpad_cmd(self, action, termination_action):
         if not self.env.save_video and self.env.headless:
@@ -141,14 +145,14 @@ class PyBoyManager:
         #    self.env.support.save_screenshot()
 
     def run_action_on_emulator(self, input):
-        action = self.valid_actions[input]
-        termination_action = pyboy_term_actions(action)
+        self.action = self.valid_actions[input]
+        termination_action = pyboy_term_actions(self.action)
 
         # TODO: This was a bug to start with using action WindowsEvent Enum over input const int. The transformation of 0-6 action to 1-7 in
         # a jumbled order though causes a 2x exploration increase. It'd be good to figure out another way to introduce the noise, but for now leaving this as is.
-        self._update_action_obs(action)
+        self._update_action_obs(self.action)
 
-        if not self.env.game.allow_menu_selection(action):
+        if not self.env.game.allow_menu_selection(self.action):
             self.move_accepted = False
             return
 
@@ -164,5 +168,5 @@ class PyBoyManager:
         #for i in range(24):
         #    self.pyboy.tick()
 
-        self.run_dpad_cmd(action, termination_action)
+        self.run_dpad_cmd(self.action, termination_action)
         self.move_accepted = True

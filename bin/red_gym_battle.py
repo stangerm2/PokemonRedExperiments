@@ -1,6 +1,28 @@
 # Assuming these constants are defined in red_env_constants
+from math import floor
 from red_env_constants import *
 from ram_reader.red_memory_battle import *
+from ram_reader.red_memory_menus import BATTLE_MENU_STATES, RedRamMenuValues
+
+
+
+class BattleTurn:
+    def __init__(self):
+        self.menus_visited = {}  # Reward for visiting a menu for the first time each battle turn, dec static reward
+
+class BattleMemory:
+    def __init__(self):
+        # Start of turn values
+        self.pre_player_pokemon = 0
+        self.pre_enemy_pokemon = 0
+        self.pre_player_modifiers_sum = 0
+        self.pre_enemy_modifiers_sum = 0
+        self.pre_player_hp = 0
+        self.pre_enemy_hp = 0
+        self.pre_player_status = 0
+        self.pre_enemy_status = 0
+        self.pre_type_hint = 0
+        self.battle_turn = BattleTurn()
 
 
 class RedGymBattle:
@@ -23,13 +45,15 @@ class RedGymBattle:
         self.total_enemy_hp_lost = 0
         self.last_party_head_hp = 0
         self.last_enemy_head_hp = 0
+        self.battle_memory = None  # Don't use the space unless in battle
+
 
     LEVEL_DELTA_DECAY = {
         0 : 1,
         1 : 0.9,
         2 : 0.75,
-        3 : 0.60,
-        4 : 0.25,
+        3 : 0.50,
+        4 : 0.20,
     }
 
 
@@ -38,6 +62,7 @@ class RedGymBattle:
             self.last_enemy_head_hp = 0
             self.current_battle_action_cnt = 0
             self.battle_has_started = False
+            self.battle_memory = None
 
     def _calc_battle_type_stats(self):
         battle_type = self.env.game.battle.get_battle_type()
@@ -67,8 +92,8 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             return
         
-        party_head_hp = self.env.game.battle.get_player_party_head_hp()
-        enemy_head_hp = self.env.game.battle.get_enemy_head_pokemon_hp()
+        _, party_head_hp = self.env.game.battle.get_player_party_head_hp()
+        _, enemy_head_hp = self.env.game.battle.get_enemy_head_pokemon_hp()
 
         if self.last_party_head_hp == 0:
             self.last_party_head_hp = party_head_hp
@@ -84,13 +109,6 @@ class RedGymBattle:
             self.last_enemy_head_hp = enemy_head_hp
 
     def _calc_level_decay(self, avg_enemy_level, avg_player_lvl):
-        """
-        Calculate the rating based on the average level of Pokemon and the level of a fighter Pokemon.
-        
-        :param avg_pokemon_level: Average level of the Pokemon party.
-        :param fighter_pokemon_lvl: Level of the fighter Pokemon.
-        :return: Rating between 0 and 1.
-        """
         POKEMON_BATTLE_LEVEL_FLOOR = 1
         level_delta = avg_player_lvl - avg_enemy_level
         if level_delta < POKEMON_BATTLE_LEVEL_FLOOR:
@@ -101,24 +119,74 @@ class RedGymBattle:
     def _calc_avg_pokemon_level(self, pokemon):
         return sum([level for level in pokemon]) / len(pokemon)
     
-    def calc_levels_delta(self):
-        avg_enemy_level = self._calc_avg_pokemon_level(self.env.game.battle.get_enemy_lineup_levels())
-        avg_player_lvl = self._calc_avg_pokemon_level(self.env.game.player.get_player_lineup_levels())
-        
-        return self._calc_level_decay(avg_enemy_level, avg_player_lvl)
+    def _get_battle_turn_stats(self):
+        player = self.env.game.battle.get_player_fighting_pokemon_arr()
+        enemy = self.env.game.battle.get_enemy_fighting_pokemon_arr()
+
+        player_hp_total, player_hp_avail = self.env.game.battle.get_player_party_head_hp()
+        enemy_hp_total, enemy_hp_avail = self.env.game.battle.get_enemy_head_pokemon_hp()
+        return {
+            'player_pokemon' : player[0],
+            'enemy_pokemon' : enemy[1],
+            'player_effects_sum' : sum(player[1:]),
+            'enemy_effects_sum' : sum(enemy[7:]),
+            'player_hp_total' : player_hp_total,
+            'player_hp_avail' : player_hp_avail,
+            'enemy_hp_total' : enemy_hp_total,
+            'enemy_hp_avail' : enemy_hp_avail,
+            'player_status' : self.env.game.battle.get_player_party_head_status(),
+            'enemy_status' : enemy[6],
+            'type_hint' : self.env.game.battle.get_battle_type_hint(),
+        }
+
+    def _update_pre_battle_memory(self):
+        turn_stats = self._get_battle_turn_stats()
+        self.battle_memory.pre_player_pokemon = turn_stats['player_pokemon']
+        self.battle_memory.pre_enemy_pokemon = turn_stats['enemy_pokemon']
+        self.battle_memory.pre_player_modifiers_sum = turn_stats['player_effects_sum']
+        self.battle_memory.pre_enemy_modifiers_sum = turn_stats['enemy_effects_sum']
+        self.battle_memory.pre_player_hp = turn_stats['player_hp_avail']
+        self.battle_memory.pre_enemy_hp = turn_stats['enemy_hp_avail']
+        self.battle_memory.pre_player_status = turn_stats['player_status']
+        self.battle_memory.pre_enemy_status = turn_stats['enemy_status']
+        self.battle_memory.pre_type_hint = turn_stats['type_hint']
+
+    def _update_menu_selected(self):
+        if not self.env.gameboy.a_button_selected() or self.env.game.game_state == self.env.game.GameState.BATTLE_TEXT:
+            return
+
+        selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
+        self.battle_memory.battle_turn.menus_visited[self.env.game.game_state.value] = selection_count + 1
     
     def get_battle_decay(self):
+        avg_enemy_level = self._calc_avg_pokemon_level(self.env.game.battle.get_enemy_lineup_levels())
+        avg_player_lvl = self._calc_avg_pokemon_level(self.env.game.player.get_player_lineup_levels())
+        decay = self._calc_level_decay(avg_enemy_level, avg_player_lvl)
+    
+        return self.LEVEL_DELTA_DECAY.get(decay, 0.001)
+    
+    def save_pre_action_battle(self):
         if not self.env.game.battle.in_battle:
-            return 0
-
-        return self.LEVEL_DELTA_DECAY.get(self.calc_levels_delta(), 0.001)
+            return
+        
+        # Handles starting mid battle on loads
+        if self.battle_memory == None:
+            self.battle_memory = BattleMemory()
+        
+        self._update_pre_battle_memory()
 
     def save_post_action_battle(self):
         if not self.env.game.battle.in_battle:
             self._clear_battle_stats()
             return
         
+        if self.battle_memory == None:
+            self.battle_memory = BattleMemory()
+        
         # IN BATTLE: Falls through
+            
+        if self.env.game.battle.new_turn:
+            self.battle_memory.battle_turn = BattleTurn()
 
         self.battle_won = self.env.game.battle.win_battle()  # allows single occurrence won flag per battle, when enemy mon's hp all -> 0
         if self.battle_won:
@@ -127,6 +195,7 @@ class RedGymBattle:
         self._inc_move_count()
         self._inc_battle_counter()
         self._inc_hp_lost_vs_taken()
+        self._update_menu_selected()
 
         # cal this way instead of w/ inc_move_count() b/c of long post battle text, which can count as still in battle
         if not self.battle_won:
@@ -136,30 +205,116 @@ class RedGymBattle:
         self._calc_battle_type_stats()
         self.total_battle_turns += self.env.game.battle.turns_in_current_battle
 
-    def get_battle_reward(self):
+    def get_battle_win_reward(self):
         if not self.env.game.battle.in_battle:
             return 0
         elif not self.battle_won:
-            return 0.15 * self.get_battle_decay()  # Being in a battle is 30x better than exploring prev explored tiles but 1/50th as good as finding a fresh tile
+            return 0.30
         
         # Won Battle falls though
         battle_type = self.env.game.battle.get_battle_type()
         if battle_type == BattleTypes.WILD_BATTLE:
-            return (10 + (max(0, (150 - self.current_battle_action_cnt)) * 0.25)) * self.get_battle_decay()
-        elif battle_type == BattleTypes.TRAINER_BATTLE:
             return (30 + (max(0, (150 - self.current_battle_action_cnt)) * 0.25)) * self.get_battle_decay()
+        elif battle_type == BattleTypes.TRAINER_BATTLE:
+            return (100 * self.env.game.battle.get_enemy_party_count() + (max(0, (1000 - self.current_battle_action_cnt)) * 0.25)) * self.get_battle_decay()
         # TODO: Need to ID Gym Battle
         #elif battle_type == BattleTypes.GYM_BATTLE):
         #    return 600
         elif battle_type == BattleTypes.DIED:
-            return -.5
+            return -5
         
         self.env.support.save_and_print_info(False, True, True)
         assert(False), "Unknown battle type"
+    
+    def _pp_select_reward(self):
+        pp_1, pp_2, pp_3, pp_4 = self.env.game.battle.get_player_party_head_pp()
+        match self.env.game.game_state:
+            case RedRamMenuValues.BATTLE_MOVE_1:
+                return int(pp_1 == 0)
+            case RedRamMenuValues.BATTLE_MOVE_2:
+                return int(pp_2 == 0)
+            case RedRamMenuValues.BATTLE_MOVE_3:
+                return int(pp_3 == 0)
+            case RedRamMenuValues.BATTLE_MOVE_4:
+                return int(pp_4 == 0)
 
-    def get_battle_reward_decay(self):
-        return self.calc_levels_delta()
+        return 0
+    
+    def _menu_selection_reward(self):
+        selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
+        if selection_count == 1:
+            return 1  # New menu discovered for this turn
+        elif selection_count < 4:
+            return 0
         
+        return max(floor(-0.005 * pow(selection_count, 2)), -10)
+            
+    def _get_battle_action_reward(self):
+        if not self.env.gameboy.a_button_selected():
+            return 0
+        
+        action_reward = 0
+        action_reward += self._pp_select_reward() * -0.1
+
+        return action_reward
+    
+    def _get_battle_hint_reward(self, turn_stats):
+        player_pokemon_switch = (turn_stats['player_pokemon'] != self.battle_memory.pre_player_pokemon)
+        enemy_pokemon_switch = (turn_stats['enemy_pokemon'] != self.battle_memory.pre_enemy_pokemon)
+        type_hint_delta = turn_stats['type_hint'] - self.battle_memory.pre_type_hint  # pos good, neg bad
+
+        if player_pokemon_switch or enemy_pokemon_switch:
+            if type_hint_delta > 0:
+                return 40
+            elif type_hint_delta < 0:  # Discourage bad switches and switch cycling for point farming
+                return -1
+            
+        return 0
+        
+    def _get_battle_stats_reward(self, turn_stats):
+        player_modifiers_delta = turn_stats['player_effects_sum'] - self.battle_memory.pre_player_modifiers_sum  # pos good, neg bad
+        enemy_modifiers_delta = turn_stats['enemy_effects_sum'] - self.battle_memory.pre_enemy_modifiers_sum  # pos bad, neg good
+        player_hp_delta = turn_stats['player_hp_avail'] - self.battle_memory.pre_player_hp  # pos good, neg bad
+        enemy_hp_delta = turn_stats['enemy_hp_avail'] - self.battle_memory.pre_enemy_hp # pos bad, neg good
+
+        reward = 0
+
+        if player_modifiers_delta > 0:
+            reward += 10
+        if enemy_modifiers_delta < 0:
+            reward += 10
+        if player_hp_delta > 0:
+            reward += 40 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
+        if enemy_hp_delta < 0:
+            reward += 40 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375)
+        if turn_stats['player_status'] == 0 and self.battle_memory.pre_player_status != 0:
+            reward += 35
+        if turn_stats['enemy_status'] != 0 and self.battle_memory.pre_enemy_status == 0:
+            reward += 35
+
+        return reward
+    
+    def get_battle_action_reward(self):
+        if not self.env.game.battle.in_battle:
+            return 0
+
+        turn_stats = self._get_battle_turn_stats()
+
+        selection_reward = self._menu_selection_reward()
+        #print(f'Menu Selection Reward: {selection_reward}')
+        #if reward < 0:
+        #    return reward  # No decay for bad menu selections
+
+        #reward += self._get_battle_action_reward()
+        #print(f'Action Reward: {self._get_battle_action_reward()}')
+        hit_reward = self._get_battle_hint_reward(turn_stats)
+        #print(f'Hint Reward: {hit_reward}')
+
+        stats_reward = self._get_battle_stats_reward(turn_stats)
+        #print(f'Stats Reward: {stats_reward}')
+
+        return selection_reward + ((hit_reward + stats_reward) * self.get_battle_decay())
+
     def get_avg_battle_action_avg(self):
         if self.total_battles == 0:
             return 0
