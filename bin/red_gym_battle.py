@@ -209,7 +209,7 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             return 0
         elif not self.battle_won:
-            return 0.30
+            return 0  # 0.30
         
         # Won Battle falls though
         battle_type = self.env.game.battle.get_battle_type()
