@@ -176,7 +176,7 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return observation, self.total_reward * 0.0001, False, step_limit_reached, {}
+        return observation, self.total_reward * 0.001, False, step_limit_reached, {}
 
 
     def _run_pre_action_steps(self):
@@ -208,7 +208,7 @@ class RedGymEnv(Env):
             'battle_turn_avg': self.battle.get_avg_battle_turn_avg(),
             'k/d': self.battle.get_kill_to_death(),
             'dmg_ratio': self.battle.get_damage_done_vs_taken(),
-            #'heal': len(self.map.pokecenter_history) - 1,
+            'heal': len(self.map.pokecenter_history) - 1,
         })
 
     def _get_observation(self):
@@ -267,7 +267,7 @@ class RedGymEnv(Env):
             'battle': self.battle.get_battle_win_reward(),
             'battle_turn': self.battle.get_battle_action_reward(),
             #'badges': self.player.get_badge_reward(),
-            #'heal' : self.support.map.get_pokecenter_reward(),
+            'pokecenter' : self.map.get_pokecenter_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward

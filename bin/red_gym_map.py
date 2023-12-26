@@ -179,11 +179,11 @@ class RedGymMap:
             return 0  # we aren't in a mart or pokecenter
 
         pokecenter_id = self.env.game.world.get_pokecenter_id()
-        if pokecenter_id != 1 and pokecenter_id in self.pokecenter_history:
-            return 0.2 # 2x better than battle steady state, encourage being in pokecenter
+        if pokecenter_id in self.pokecenter_history:
+            return 0
                 
         self.pokecenter_history[pokecenter_id] = True
-        return 100
+        return 1000
 
     def get_exploration_reward(self):
         x_pos, y_pos, map_n = self.env.game.map.get_current_location()

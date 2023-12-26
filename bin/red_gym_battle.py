@@ -49,11 +49,11 @@ class RedGymBattle:
 
 
     LEVEL_DELTA_DECAY = {
-        0 : 1,
-        1 : 0.9,
-        2 : 0.75,
-        3 : 0.50,
-        4 : 0.20,
+        0 : 0.95,
+        1 : 0.85,
+        2 : 0.6,
+        3 : 0.40,
+        4 : 0.15,
     }
 
 
@@ -152,9 +152,12 @@ class RedGymBattle:
         self.battle_memory.pre_type_hint = turn_stats['type_hint']
 
     def _update_menu_selected(self):
-        if not self.env.gameboy.a_button_selected() or self.env.game.game_state == self.env.game.GameState.BATTLE_TEXT:
+        #if not self.env.gameboy.a_button_selected() or self.env.game.game_state == self.env.game.GameState.BATTLE_TEXT:
+        #    return
+        
+        if self.env.game.game_state == self.env.game.GameState.BATTLE_ANIMATION:
             return
-
+        
         selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
         self.battle_memory.battle_turn.menus_visited[self.env.game.game_state.value] = selection_count + 1
     
@@ -209,14 +212,16 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             return 0
         elif not self.battle_won:
-            return 0.10
+            return 0.1
         
         # Won Battle falls though
+        BATTLE_MOVE_CEILING = 350
         battle_type = self.env.game.battle.get_battle_type()
         if battle_type == BattleTypes.WILD_BATTLE:
-            return (30 + (max(0, (150 - self.current_battle_action_cnt)) * 0.25)) * self.get_battle_decay()
+            return (max(0, (BATTLE_MOVE_CEILING - self.current_battle_action_cnt) * self.get_battle_decay()))
         elif battle_type == BattleTypes.TRAINER_BATTLE:
-            return (100 * self.env.game.battle.get_enemy_party_count() + (max(0, (1000 - self.current_battle_action_cnt)) * 0.25)) * self.get_battle_decay()
+            pokemon_fought = self.env.game.battle.get_enemy_party_count()
+            return 200 * pokemon_fought + (max(0, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt))
         # TODO: Need to ID Gym Battle
         #elif battle_type == BattleTypes.GYM_BATTLE):
         #    return 600
@@ -243,11 +248,10 @@ class RedGymBattle:
     def _menu_selection_reward(self):
         selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
         if selection_count == 1:
-            return 0.05  # New menu discovered for this turn
-        elif selection_count < 4:
-            return 0
+            return 0.05  # New menu discovered for this turn, keep low or AI will farm menu hover w/ wild pokemon vs. explore
         
-        return max(floor(-0.01 * pow(selection_count, 2)), -50)
+        # TODO: Run in trainer battle not working, need to fix, no neg
+        return max(-0.0001 * pow(selection_count, 2), -0.11)
             
     def _get_battle_action_reward(self):
         if not self.env.gameboy.a_button_selected():
@@ -265,13 +269,17 @@ class RedGymBattle:
 
         if player_pokemon_switch or enemy_pokemon_switch:
             if type_hint_delta > 0:
-                return 40
+                return 4
             elif type_hint_delta < 0:  # Discourage bad switches and switch cycling for point farming
-                return -1
+                return -0.1
             
         return 0
         
     def _get_battle_stats_reward(self, turn_stats):
+        # Can't have a stat inc/dec reward on the 1st turn b/c nothings happened yet
+        if self.total_battle_turns == 0:
+            return 0
+        
         player_modifiers_delta = turn_stats['player_effects_sum'] - self.battle_memory.pre_player_modifiers_sum  # pos good, neg bad
         enemy_modifiers_delta = turn_stats['enemy_effects_sum'] - self.battle_memory.pre_enemy_modifiers_sum  # pos bad, neg good
         player_hp_delta = turn_stats['player_hp_avail'] - self.battle_memory.pre_player_hp  # pos good, neg bad
@@ -280,28 +288,28 @@ class RedGymBattle:
         reward = 0
 
         if player_modifiers_delta > 0:
-            reward += 10
+            reward += 3
         if enemy_modifiers_delta < 0:
-            reward += 10
+            reward += 3
         if player_hp_delta > 0:
-            reward += 40 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
+            reward += 6 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
         if enemy_hp_delta < 0:
-            reward += 40 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375) * turn_stats['type_hint']
+            reward += 6 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375) * turn_stats['type_hint']
         if turn_stats['player_status'] == 0 and self.battle_memory.pre_player_status != 0:
-            reward += 35
+            reward += 5
         if turn_stats['enemy_status'] != 0 and self.battle_memory.pre_enemy_status == 0:
-            reward += 35
+            reward += 5
 
         return reward
     
     def get_battle_action_reward(self):
-        if not self.env.game.battle.in_battle or self.total_battle_turns == 0:
+        if not self.env.game.battle.in_battle:
             return 0
 
         turn_stats = self._get_battle_turn_stats()
 
         selection_reward = self._menu_selection_reward()
-        #print(f'Menu Selection Reward: {selection_reward}')
+        #(f'Menu Selection Reward: {selection_reward}')
         #if reward < 0:
         #    return reward  # No decay for bad menu selections
 
