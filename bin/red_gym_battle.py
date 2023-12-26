@@ -286,7 +286,7 @@ class RedGymBattle:
         if player_hp_delta > 0:
             reward += 40 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
         if enemy_hp_delta < 0:
-            reward += 40 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375)
+            reward += 40 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375) * turn_stats['type_hint']
         if turn_stats['player_status'] == 0 and self.battle_memory.pre_player_status != 0:
             reward += 35
         if turn_stats['enemy_status'] != 0 and self.battle_memory.pre_enemy_status == 0:
@@ -295,7 +295,7 @@ class RedGymBattle:
         return reward
     
     def get_battle_action_reward(self):
-        if not self.env.game.battle.in_battle:
+        if not self.env.game.battle.in_battle or self.total_battle_turns == 0:
             return 0
 
         turn_stats = self._get_battle_turn_stats()
@@ -307,13 +307,15 @@ class RedGymBattle:
 
         #reward += self._get_battle_action_reward()
         #print(f'Action Reward: {self._get_battle_action_reward()}')
-        hit_reward = self._get_battle_hint_reward(turn_stats)
+        #hit_reward = self._get_battle_hint_reward(turn_stats)
         #print(f'Hint Reward: {hit_reward}')
+
+        #print(f'hint: {turn_stats["type_hint"]}')
 
         stats_reward = self._get_battle_stats_reward(turn_stats)
         #print(f'Stats Reward: {stats_reward}')
 
-        return selection_reward + ((hit_reward + stats_reward) * self.get_battle_decay())
+        return selection_reward + (stats_reward * self.get_battle_decay())
 
     def get_avg_battle_action_avg(self):
         if self.total_battles == 0:
