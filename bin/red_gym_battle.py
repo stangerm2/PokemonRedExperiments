@@ -372,7 +372,7 @@ class RedGymBattle:
         return self.env.support.normalize_np_array(np.array([self.env.game.battle.get_battles_pokemon_left()], dtype=np.float32) * 42)
 
     def obs_player_head_index(self):
-        if not self.env.game.battle.in_battle:
+        if not self.env.game.battle.in_battle:  # TODO: What if mon fainted? Should show next avail mon in party
             return np.zeros((1, ), dtype=np.uint8)
 
         return np.array([self.env.game.battle.get_player_head_index()], dtype=np.uint8)

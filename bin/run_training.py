@@ -44,7 +44,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.move_fc = nn.Sequential(
             nn.Linear(6168, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -59,15 +59,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Player Class
         self.player_fc = nn.Sequential(
-            nn.Linear(96, features_dim),
+            nn.Linear(128, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
         # Player Fighter Class
         self.player_fighter_fc = nn.Sequential(
-            nn.Linear(305, features_dim),
+            nn.Linear(337, features_dim),
             nn.ReLU(),
             nn.Linear(features_dim, features_dim),
             nn.ReLU(),
@@ -75,9 +75,9 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Battle Turn Class
         self.battle_turn_fc = nn.Sequential(
-            nn.Linear(123, features_dim),
+            nn.Linear(645, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -85,29 +85,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.enemy_battle_fc = nn.Sequential(
             nn.Linear(324, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
-        )
-
-        # Battle FCL's
-        self.battle_fc = nn.Sequential(
-            nn.Linear(150, features_dim),  # Adjust the output size as needed
-            nn.ReLU(),
-            #nn.Linear(64, features_dim),
-            #nn.ReLU()
-        )
-
-        # Battle Turn FCL
-        self.battle_turn_fc = nn.Sequential(
-            nn.Linear(613, features_dim),
-            nn.ReLU()
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1036, 256),
+            nn.Linear(1036, features_dim),
             nn.ReLU(),
-            nn.Linear(256, features_dim),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU()
         )
 
@@ -306,7 +292,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../' + "saved_runs/session_775fff0c/poke_14729216_steps.zip"
+    #file_name = '../' + "saved_runs/session_e2a8cbc1/poke_6348800_steps.zip"
 
     model = None
     checkpoint_exists = exists(file_name)
