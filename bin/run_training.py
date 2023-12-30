@@ -44,8 +44,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.move_fc = nn.Sequential(
             nn.Linear(6168, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
-            nn.ReLU(),
         )
 
         # Pokemon Class
@@ -53,15 +51,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.pokemon_fc = nn.Sequential(
             nn.Linear(1938, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
-            nn.ReLU(),
         )
 
         # Player Class
         self.player_fc = nn.Sequential(
             nn.Linear(96, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -69,15 +63,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.player_fighter_fc = nn.Sequential(
             nn.Linear(273, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
-            nn.ReLU(),
         )
 
         # Enemy Battle Class
         self.enemy_battle_fc = nn.Sequential(
             nn.Linear(324, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
         
@@ -85,13 +75,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.battle_turn_fc = nn.Sequential(
             nn.Linear(517, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
-            nn.ReLU(),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1196, 256),
+            nn.Linear(1292, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
@@ -161,7 +149,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             pokemon_features,
             moves_features,
         ], dim=1)
-        player_features = self.player_fc(player_input)
+        #player_features = self.player_fc(player_input)
 
         # Player Fighter Class
         player_head_index = observations["player_head_index"].view(batch_size, -1)
