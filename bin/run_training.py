@@ -44,6 +44,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.move_fc = nn.Sequential(
             nn.Linear(6168, features_dim),
             nn.ReLU(),
+            nn.Linear(features_dim, 32),
+            nn.ReLU(),
         )
 
         # Pokemon Class
@@ -51,17 +53,23 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.pokemon_fc = nn.Sequential(
             nn.Linear(1938, features_dim),
             nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
+            nn.ReLU(),
         )
 
         # Player Class
         self.player_fc = nn.Sequential(
-            nn.Linear(128, features_dim),
+            nn.Linear(96, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
         # Player Fighter Class
         self.player_fighter_fc = nn.Sequential(
-            nn.Linear(337, features_dim),
+            nn.Linear(273, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -69,20 +77,24 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.enemy_battle_fc = nn.Sequential(
             nn.Linear(324, features_dim),
             nn.ReLU(),
+            nn.Linear(features_dim, 32),
+            nn.ReLU(),
         )
         
         # Battle Turn Class
         self.battle_turn_fc = nn.Sequential(
-            nn.Linear(645, features_dim),
+            nn.Linear(517, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1036, 256),
+            nn.Linear(1196, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
-            nn.ReLU(),
+            nn.ReLU()
         )
 
     def forward(self, observations):
@@ -162,7 +174,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             player_head_pokemon,
             player_modifiers_input,
             type_hint_input,
-            player_features,  # TODO: Can we focus on just the head pokemon?, and breakout player to global fc
+            #player_features,  # TODO: Can we focus on just the head pokemon?, and breakout player to global fc
         ], dim=1)
         player_fighter_features = self.player_fighter_fc(player_fighter_input)
 
@@ -195,8 +207,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             battle_type_input,
             enemies_left_input,
             move_selection_input,
-            player_fighter_features,
-            enemy_battle_features,
+            #player_fighter_features,
+            #enemy_battle_features,
         ], dim=1)
         battle_turn_features = self.battle_turn_fc(battle_turn_input)
 
@@ -207,8 +219,12 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             coordinates_features,
             action_features, 
             game_state_features,
-            battle_turn_features,
             #battle_features,
+            moves_features,
+            pokemon_features,
+            player_fighter_features,
+            enemy_battle_features,
+            battle_turn_features,
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
@@ -246,7 +262,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         #env_config['debug'] = True
