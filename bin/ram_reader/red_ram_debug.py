@@ -52,12 +52,13 @@ def get_battle_str(game):
         battle_type = game.battle.get_battle_type()
         enemys_left = game.battle.get_battles_pokemon_left()
         win_battle = game.battle.win_battle()
-        player_stats = game.battle.get_player_fighting_pokemon_dict()
-        enemy_stats = _pokemon_dict_pretty_str([game.battle.get_enemy_fighting_pokemon_dict()])
-        turns = game.battle.get_battle_turn_info_dict()
+        player_head_index = game.battle.get_player_head_index()
+        player_modifiers = game.battle.get_player_head_modifiers_dict()
+        enemy_fighting = _pokemon_dict_pretty_str([game.battle.get_enemy_fighting_pokemon_dict()])
+        player_move, enemy_move = game.battle.get_battle_turn_moves()
         type_hint = game.battle.get_battle_type_hint()
 
-        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nplayer_stats: {player_stats} \nenemy_stats: {enemy_stats} \ntype_hint: {type_hint}\nturns: {turns}'
+        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nhead_index: {player_head_index}\nplayer_mods: {player_modifiers} \nenemy_stats: {enemy_fighting} \ntype_hint: {type_hint}\player_move: {player_move}, enemy_move: {enemy_move}'
 
 def get_map_str(game):
         location = game.map.get_current_location()

@@ -63,18 +63,32 @@ def initialize_observation_space(extra_buttons):
             "game_state": spaces.Discrete(117),
 
             # Player:
-            "pokemon_lineup": spaces.Box(low=0, high=255, shape=(6, 13), dtype=np.uint8),
-            "pokemon_health": spaces.Box(low=0, high=703, shape=(6, 2), dtype=np.int16),
-            "pokemon_stats": spaces.Box(low=0, high=458, shape=(6, 4), dtype=np.int16),
+            "player_pokemon": spaces.MultiDiscrete([256] * 6),
+            "player_levels": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "player_types": spaces.MultiDiscrete([27] * 2 * 6,),
+            "player_hp": spaces.Box(low=0, high=1, shape=(6, 2), dtype=np.float32),
+            "player_moves": spaces.MultiDiscrete([256] * 6 * 4, ),
+            "player_xp": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "player_pp": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
+            "player_stats": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
+            "player_status": spaces.MultiBinary(6 * 5),
+
             #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
 
             # Battle
-            "battle_type": spaces.Box(low=0, high=3, shape=(1,), dtype=np.uint8),
-            "enemies_left": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
-            "player_stats": spaces.Box(low=0, high=255, shape=(7,), dtype=np.uint8),
-            "enemy_stats": spaces.Box(low=0, high=255, shape=(13,), dtype=np.uint8),
-            "turn_info": spaces.Box(low=0, high=255, shape=(3,), dtype=np.uint8),
-            "type_hint": spaces.Box(low=0, high=4, shape=(1,), dtype=np.uint8),
+            "battle_type": spaces.MultiBinary(4),
+            "enemies_left": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
+            "player_head_index": spaces.MultiDiscrete([7]),
+            "player_head_pokemon": spaces.MultiDiscrete([256]),
+            "player_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "enemy_head": spaces.MultiDiscrete([256]),
+            "enemy_level": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
+            "enemy_hp": spaces.Box(low=0, high=1, shape=(2, ), dtype=np.float32),
+            "enemy_types": spaces.MultiDiscrete([27] * 2, ),
+            "enemy_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "enemy_status": spaces.MultiBinary(5),
+            "move_selection": spaces.MultiDiscrete([256] * 2),
+            "type_hint": spaces.MultiBinary(4),
         }
     )
 
@@ -213,32 +227,53 @@ class RedGymEnv(Env):
 
     def _get_observation(self):
         self.map.update_map_obs()
+        enemy_type_1, enemy_type_2 = self.game.battle.get_enemy_party_head_types()
 
         observation = {
             # Game View:
-            "screen": self.map.screen,
-            "visited": self.map.visited,
-            "walkable": self.map.walkable,
-            "action": self.gameboy.action_history,
+            "screen":      self.map.screen,
+            "visited":     self.map.visited,
+            "walkable":    self.map.walkable,
+            "action":      self.gameboy.action_history,
             "coordinates": self.map.coordinates,
 
             # Game:
             "game_state": self.game.get_game_state(),
 
             # Player:
-            "pokemon_lineup": self.game.player.get_player_lineup_arr(),
-            "pokemon_health": self.game.player.get_player_health_arr(),
-            "pokemon_stats": self.game.player.get_player_stats_arr(),
+            "player_pokemon":    self.player.obs_player_pokemon(),
+            "player_levels":     self.player.obs_player_levels(),
+            "player_types":      self.player.obs_player_types(),
+            "player_hp":     self.player.obs_player_health(),
+            "player_moves":      self.player.obs_player_moves(),
+            "player_xp":         self.player.obs_player_xp(),
+            "player_pp":         self.player.obs_player_pp(),
+            "player_stats":      self.player.obs_player_stats(),
+            "player_status":     self.player.obs_player_status(),
             #"badges": self.game.player.get_badges(),
 
             # Battle
-            "battle_type": np.array([self.game.battle.get_battle_type()], dtype=np.uint8),
-            "enemies_left": np.array([self.game.battle.get_battles_pokemon_left()], dtype=np.uint8),
-            "player_stats": self.game.battle.get_player_fighting_pokemon_arr(),
-            "enemy_stats": self.game.battle.get_enemy_fighting_pokemon_arr(),
-            "turn_info": self.game.battle.get_battle_turn_info_arr(),
-            "type_hint": np.array([self.game.battle.get_battle_type_hint()], dtype=np.uint8),
+            "battle_type":         self.battle.obs_battle_type(),
+            "enemies_left":        self.battle.obs_enemies_left(),
+
+            "player_head_index":   self.battle.obs_player_head_index(),
+            "player_head_pokemon": self.battle.obs_player_head_pokemon(),
+            "player_modifiers":    self.battle.obs_player_modifiers(),
+
+            "enemy_head":          self.battle.obs_enemy_head(),
+            "enemy_level":         self.battle.obs_enemy_level(),
+            "enemy_hp":            self.battle.obs_enemy_hp(),
+            "enemy_types":         self.battle.obs_enemy_types(),
+            "enemy_modifiers":     self.battle.obs_enemy_modifiers(),
+            "enemy_status":        self.battle.obs_enemy_status(),
+
+            "move_selection":      self.battle.obs_battle_moves_selected(),
+            "type_hint":           self.battle.obs_type_hint(),
+
         }
+
+        #for key, val in observation.items():
+        #    print(f'{key}: {val}')
 
         return observation
     

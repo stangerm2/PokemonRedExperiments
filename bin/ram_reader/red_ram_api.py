@@ -208,7 +208,10 @@ class Battle:
         return True
     
     def get_battle_type(self):
-        return self.env.ram_interface.read_memory(BATTLE_TYPE)
+        battle_type = self.env.ram_interface.read_memory(BATTLE_TYPE)
+        if battle_type == 255:
+            battle_type = BattleTypes.DIED  # Died in battle, reassigned to 4 to save bits as 4-255 unused
+        return battle_type
     
     def is_in_pre_battle(self):
         return self.env.ram_interface.read_memory(CURRENT_OPPONENT)
@@ -216,6 +219,13 @@ class Battle:
     def get_special_battle_type(self):
         return self.env.ram_interface.read_memory(SPECIAL_BATTLE_TYPE)
     
+    def get_player_head_index(self):
+        return self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
+    
+    def get_player_head_pokemon(self):
+        offset = self._loaded_pokemon_address()
+        return Pokemon(self.env).get_pokemon(offset)
+
     def get_player_party_head_hp(self):
         offset = self._loaded_pokemon_address()
         return Pokemon(self.env).get_pokemon_health(offset)
@@ -228,17 +238,10 @@ class Battle:
         offset = self._loaded_pokemon_address()
         return Pokemon(self.env).get_pokemon_pp_avail(offset)
     
-    def get_player_fighting_pokemon_arr(self):
+    def get_player_party_head_modifiers(self):
         if not self.get_battle_type():
-            return [0x00] * 7
+            return 0, 0, 0, 0, 0, 0
 
-        pokemon = self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
-        # Redundant to Pokemon Party info
-        # level = self.env.ram_interface.read_memory(PLAYERS_POKEMON_LEVEL)
-        # hp = (self.env.ram_interface.read_memory(PLAYERS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(PLAYERS_POKEMON_HP[1])
-        #type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + pokemon * PARTY_OFFSET)
-        #type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + pokemon * PARTY_OFFSET)
-        # status = self.env.ram_interface.read_memory(PLAYERS_POKEMON_STATUS)
         attack_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_ATTACK_MODIFIER)
         defense_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_DEFENSE_MODIFIER)
         speed_mod =  self.env.ram_interface.read_memory(PLAYERS_POKEMON_SPEED_MODIFIER)
@@ -246,41 +249,42 @@ class Battle:
         special_mod =  self.env.ram_interface.read_memory(PLAYERS_POKEMON_SPECIAL_MODIFIER)
         evasion_mod = self.env.ram_interface.read_memory(PLAYERS_POKEMON_SPECIAL_MODIFIER)
 
-        return np.array([pokemon, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod], dtype=np.uint8)
+        return attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod
     
-    def get_player_fighting_pokemon_dict(self):
-        player_fighting_pokemon = self.get_player_fighting_pokemon_arr()
+    def get_player_head_modifiers_dict(self):
+        attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod = self.get_player_party_head_modifiers()
 
         return {
-            'pokemon': player_fighting_pokemon[0],
-            'attack_mod': player_fighting_pokemon[1],
-            'defense_mod': player_fighting_pokemon[2],
-            'speed_mod': player_fighting_pokemon[3],
-            'accuracy_mod': player_fighting_pokemon[4],
-            'special_mod': player_fighting_pokemon[5],
-            'evasion_mod': player_fighting_pokemon[6]
+            'attack_mod': attack_mod,
+            'defense_mod': defense_mod,
+            'speed_mod': speed_mod,
+            'accuracy_mod': accuracy_mod,
+            'special_mod': special_mod,
+            'evasion_mod': evasion_mod
         }
     
-    def get_enemy_head_pokemon_hp(self):
+    def get_enemy_party_count(self):
+        return self.env.ram_interface.read_memory(ENEMY_PARTY_COUNT)
+    
+    def get_enemy_party_head_pokemon(self):
+        return self.env.ram_interface.read_memory(ENEMYS_POKEMON)
+    
+    def get_enemy_party_head_types(self):
+        return self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0]), self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
+    
+    def get_enemy_party_head_hp(self):
         hp_total = (self.env.ram_interface.read_memory(ENEMYS_POKEMON_MAX_HP[0]) << 8) + self.env.ram_interface.read_memory(ENEMYS_POKEMON_MAX_HP[1])
         hp_avail = (self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[0]) << 8) + self.env.ram_interface.read_memory(ENEMYS_POKEMON_HP[1])
 
         return hp_total, hp_avail
     
-    def get_enemy_party_count(self):
-        return self.env.ram_interface.read_memory(ENEMY_PARTY_COUNT)
+    def get_enemy_party_head_level(self):
+        return self.env.ram_interface.read_memory(ENEMYS_POKEMON_LEVEL)
     
-    def get_enemy_fighting_pokemon_arr(self):
-        if not self.get_battle_type():
-            return [0x00] * 13
-        
-        party_count = self.get_enemy_party_count()
-        pokemon = self.env.ram_interface.read_memory(ENEMYS_POKEMON)
-        level = self.env.ram_interface.read_memory(ENEMYS_POKEMON_LEVEL)
-        _ , hp = self.get_enemy_head_pokemon_hp()
-        type_1 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[0])
-        type_2 = self.env.ram_interface.read_memory(ENEMYS_POKEMON_TYPES[1])
-        status = self.env.ram_interface.read_memory(ENEMYS_POKEMON_STATUS)
+    def get_enemy_party_head_status(self):
+        return self.env.ram_interface.read_memory(ENEMYS_POKEMON_STATUS)
+    
+    def get_enemy_party_head_modifiers(self):
         attack_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_ATTACK_MODIFIER)
         defense_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_DEFENSE_MODIFIER)
         speed_mod =  self.env.ram_interface.read_memory(ENEMYS_POKEMON_SPEED_MODIFIER)
@@ -288,45 +292,35 @@ class Battle:
         special_mod =  self.env.ram_interface.read_memory(ENEMYS_POKEMON_SPECIAL_MODIFIER)
         evasion_mod = self.env.ram_interface.read_memory(ENEMYS_POKEMON_SPECIAL_MODIFIER)
 
-        return np.array([party_count, pokemon, level, hp, type_1, type_2, status, attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod], dtype=np.uint8)
+        return attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod
 
     def get_enemy_fighting_pokemon_dict(self):
-        enemy_fighting_pokemon = self.get_enemy_fighting_pokemon_arr()
+        hp_total, hp_avail = self.get_enemy_party_head_hp()
+        attack_mod, defense_mod, speed_mod, accuracy_mod, special_mod, evasion_mod = self.get_enemy_party_head_modifiers()
+        type_1, type_2 = self.get_enemy_party_head_types()
 
         return {
-            'party_count': enemy_fighting_pokemon[0],
-            'pokemon': enemy_fighting_pokemon[1],
-            'level': enemy_fighting_pokemon[2],
-            'hp': enemy_fighting_pokemon[3],
-            'type_1': enemy_fighting_pokemon[4],
-            'type_2': enemy_fighting_pokemon[5],
-            'status': enemy_fighting_pokemon[6],
-            'attack_mod': enemy_fighting_pokemon[7],
-            'defense_mod': enemy_fighting_pokemon[8],
-            'speed_mod': enemy_fighting_pokemon[9],
-            'accuracy_mod': enemy_fighting_pokemon[10],
-            'special_mod': enemy_fighting_pokemon[11],
-            'evasion_mod': enemy_fighting_pokemon[12]
+            'party_count': self.get_enemy_party_count(),
+            'pokemon': self.get_enemy_party_head_pokemon(),
+            'level': self.get_enemy_party_head_level(),
+            'hp_total': hp_total,
+            'hp_avail': hp_avail,
+            'type_1': type_1,
+            'type_2': type_2,
+            'status': self.get_enemy_party_head_status(),
+            'attack_mod':  attack_mod,
+            'defense_mod': defense_mod,
+            'speed_mod': speed_mod,
+            'accuracy_mod': accuracy_mod,
+            'special_mod': special_mod,
+            'evasion_mod': evasion_mod
         }
 
-    def get_battle_turn_info_arr(self):
-        if not self.get_battle_type():
-            return [0x00] * 3
-
-        # turns_in_current_battle = self.env.ram_interface.read_memory(TURNS_IN_CURRENT_BATTLE)
+    def get_battle_turn_moves(self):
         player_selected_move = self.env.ram_interface.read_memory(PLAYER_SELECTED_MOVE)
         enemy_selected_move = self.env.ram_interface.read_memory(ENEMY_SELECTED_MOVE)
 
-        return np.array([self.turns_in_current_battle, player_selected_move, enemy_selected_move], dtype=np.uint8)                                                              
-    
-    def get_battle_turn_info_dict(self):
-        battle_turn_info = self.get_battle_turn_info_arr()
-
-        return {
-            'turns_in_current_battle': battle_turn_info[0],
-            'player_selected_move': battle_turn_info[1],
-            'enemy_selected_move': battle_turn_info[2]
-        }
+        return player_selected_move, enemy_selected_move                                                         
     
     def get_battles_pokemon_left(self):
         alive_pokemon = 0
@@ -552,15 +546,39 @@ class Menus:
 class Pokemon:
     def __init__(self, env):
         self.env = env
+    
+    def get_pokemon(self, offset):
+        return self.env.ram_interface.read_memory(POKEMON_1 + offset)
+    
+    def get_pokemon_level(self, offset):
+        return self.env.ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
+    
+    def get_pokemon_type(self, offset):
+        type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + offset)
+        type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + offset)
 
-    def get_pokemon_status(self, offset):
-        return self.env.ram_interface.read_memory(POKEMON_1_STATUS + offset)
+        return type_1, type_2
     
     def get_pokemon_health(self, offset):
         hp_total = (self.env.ram_interface.read_memory(POKEMON_1_MAX_HP[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_MAX_HP[1] + offset)
         hp_avail = (self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[1] + offset)
 
         return hp_total, hp_avail
+    
+    def get_pokemon_xp(self, offset):
+        xp = ((self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[0] + offset) << 16) +
+              (self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[1] + offset) << 8) +
+               self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[2] + offset))
+
+        return xp
+    
+    def get_pokemon_moves(self, offset):
+        move_1 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[0]+ offset)
+        move_2 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[1]+ offset)
+        move_3 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[2]+ offset)
+        move_4 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[3]+ offset)
+
+        return move_1, move_2, move_3, move_4
     
     def get_pokemon_pp_avail(self, offset):
         pp_1 = self.env.ram_interface.read_memory(POKEMON_1_PP_MOVES[0]+ offset)
@@ -570,65 +588,27 @@ class Pokemon:
 
         return pp_1, pp_2, pp_3, pp_4
     
-    def get_pokemon_lineup_arr(self, party_index=0):
-        offset = party_index * PARTY_OFFSET
-
-        pokemon = self.env.ram_interface.read_memory(POKEMON_1 + offset)
-        level = self.env.ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
-        type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + offset)
-        type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + offset)
-        move_1 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[0]+ offset)
-        move_2 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[1]+ offset)
-        move_3 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[2]+ offset)
-        move_4 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[3]+ offset)
-        pp_1, pp_2, pp_3, pp_4 = self.get_pokemon_pp_avail(offset)
-        health_status = self.get_pokemon_status(offset)
-
-        return np.array([pokemon, level, type_1, type_2, move_1, move_2, move_3, move_4, pp_1, pp_2, pp_3, pp_4, health_status], dtype=np.uint8)
-    
-    def get_pokemon_health_arr(self, party_index=0):
-        offset = party_index * PARTY_OFFSET
-        hp_total, hp_avail = self.get_pokemon_health(offset)
-
-        return np.array([hp_total, hp_avail], dtype=np.uint16)
-    
-    def get_pokemon_stats_arr(self, party_index=0):
-        offset = party_index * PARTY_OFFSET
+    def get_pokemon_stats(self, offset):
         attack = (self.env.ram_interface.read_memory(POKEMON_1_ATTACK[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_ATTACK[1] + offset)
         defense = (self.env.ram_interface.read_memory(POKEMON_1_DEFENSE[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_DEFENSE[1] + offset)
         speed = (self.env.ram_interface.read_memory(POKEMON_1_SPEED[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_SPEED[1] + offset)
         special = (self.env.ram_interface.read_memory(POKEMON_1_SPECIAL[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_SPECIAL[1] + offset)
 
-        return np.array([attack, defense, speed, special], dtype=np.uint16)
+        return attack, defense, speed, special
     
-    def get_pokemon_exp_arr(self, party_index=0):
-        offset = party_index * PARTY_OFFSET
-        xp = ((self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[0] + offset) << 16) +
-              (self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[1] + offset) << 8) +
-               self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[2] + offset))
-
-        return np.array([xp], dtype=np.uint32)
+    def get_pokemon_status(self, offset):
+        return self.env.ram_interface.read_memory(POKEMON_1_STATUS + offset)
 
     def get_pokemon_data_dict(self, party_index=0):
         offset = party_index * PARTY_OFFSET
-        pokemon = self.env.ram_interface.read_memory(POKEMON_1 + offset)
-        level = self.env.ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
-        type_1 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[0] + offset)
-        type_2 = self.env.ram_interface.read_memory(POKEMON_1_TYPES[1] + offset)
-        hp_total = (self.env.ram_interface.read_memory(POKEMON_1_MAX_HP[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_MAX_HP[1] + offset)
-        hp_avail = (self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_CURRENT_HP[1] + offset)
-        xp = ((self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[0] + offset) << 16) +
-              (self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[1] + offset) << 8) +
-               self.env.ram_interface.read_memory(POKEMON_1_EXPERIENCE[2] + offset))
-        move_1 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[0]+ offset)
-        move_2 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[1]+ offset)
-        move_3 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[2]+ offset)
-        move_4 = self.env.ram_interface.read_memory(POKEMON_1_MOVES[3]+ offset)
+        pokemon = self.get_pokemon(offset)
+        level = self.get_pokemon_level(offset)
+        type_1, type_2 = self.get_pokemon_type(offset)
+        hp_total, hp_avail = self.get_pokemon_health(offset)
+        xp = self.get_pokemon_xp(offset)
+        move_1, move_2, move_3, move_4 = self.get_pokemon_moves(offset)
         pp_1, pp_2, pp_3, pp_4 = self.get_pokemon_pp_avail(offset)
-        attack = (self.env.ram_interface.read_memory(POKEMON_1_ATTACK[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_ATTACK[1] + offset)
-        defense = (self.env.ram_interface.read_memory(POKEMON_1_DEFENSE[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_DEFENSE[1] + offset)
-        speed = (self.env.ram_interface.read_memory(POKEMON_1_SPEED[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_SPEED[1] + offset)
-        special = (self.env.ram_interface.read_memory(POKEMON_1_SPECIAL[0] + offset) << 8) + self.env.ram_interface.read_memory(POKEMON_1_SPECIAL[1] + offset)
+        attack, defense, speed, special = self.get_pokemon_stats(offset)
         health_status = self.get_pokemon_status(offset)
 
         # http://www.psypokes.com/rby/maxstats.php
@@ -671,15 +651,32 @@ class Player:
     def get_player_lineup_dict(self):
         return [Pokemon(self.env).get_pokemon_data_dict(i) for i in range(POKEMON_PARTY_SIZE)]
 
-    def get_player_lineup_arr(self):
-        # Loop from index 0-5 and get each pokemon array and put it into 2d np array
-        return np.array([Pokemon(self.env).get_pokemon_lineup_arr(i) for i in range(POKEMON_PARTY_SIZE)], dtype=np.uint8)
+    def get_player_lineup_pokemon(self):
+        return [Pokemon(self.env).get_pokemon(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
     
-    def get_player_health_arr(self):
-        return np.array([Pokemon(self.env).get_pokemon_health_arr(i) for i in range(POKEMON_PARTY_SIZE)], dtype=np.int16)
+    def get_player_lineup_levels(self):
+        return [Pokemon(self.env).get_pokemon_level(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
     
-    def get_player_stats_arr(self):
-        return np.array([Pokemon(self.env).get_pokemon_stats_arr(i) for i in range(POKEMON_PARTY_SIZE)], dtype=np.int16)
+    def get_player_lineup_health(self):
+        return [Pokemon(self.env).get_pokemon_health(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_xp(self):
+        return [Pokemon(self.env).get_pokemon_xp(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_moves(self):
+        return [Pokemon(self.env).get_pokemon_moves(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_pp(self):
+        return [Pokemon(self.env).get_pokemon_pp_avail(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_stats(self):
+        return [Pokemon(self.env).get_pokemon_stats(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_types(self):
+        return [Pokemon(self.env).get_pokemon_type(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+    
+    def get_player_lineup_status(self):
+        return [Pokemon(self.env).get_pokemon_status(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
     
     def is_following_npc(self):
         if self.env.ram_interface.read_memory(FOLLOWING_NPC_FLAG) != 0x00:
@@ -688,7 +685,7 @@ class Player:
         return self.env.GameState.GAME_STATE_UNKNOWN
     
     def get_badges(self):
-        return np.array([self.env.ram_interface.read_memory(OBTAINED_BADGES)], dtype=np.uint8)
+        return [self.env.ram_interface.read_memory(OBTAINED_BADGES)]
     
     def get_pokedex_seen(self):
         return self._pokedex_bit_count(POKEDEX_SEEN)
@@ -701,18 +698,6 @@ class Player:
         money_bytes = [self.env.ram_interface.read_memory(addr) for addr in PLAYER_MONEY]
         money_hex = ''.join([f'{byte:02x}' for byte in money_bytes])
         money_int = int(money_hex, 10)
-        return np.array([money_int], dtype=np.float32)
-    
-    def get_player_lineup_levels(self):
-        lineup_levels = []
-        for party_index in range(POKEMON_PARTY_SIZE):
-            offset = party_index * PARTY_OFFSET
-            level = self.env.ram_interface.read_memory(POKEMON_1_LEVEL_ACTUAL + offset)
-            if level:
-                lineup_levels.append(level)
-            else:
-                break
-
-        return lineup_levels
+        return money_int
 
     

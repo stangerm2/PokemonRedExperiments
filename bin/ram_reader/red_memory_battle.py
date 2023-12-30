@@ -98,7 +98,8 @@ ENEMYS_DISABLE_COUNTER = (0xD072, 0xD073)
 class BattleTypes(IntEnum):
     WILD_BATTLE = 1,
     TRAINER_BATTLE = 2,
-    DIED = 255,
+    GYM_BATTLE = 3,
+    DIED = 4,
 
 
 # Update the dictionary with specific effectiveness values

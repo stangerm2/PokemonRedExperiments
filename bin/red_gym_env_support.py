@@ -11,17 +11,17 @@ from red_env_constants import *
 from ram_reader.red_ram_debug import *
 
 
-def calc_byte_float_norm():
+def calc_byte_float_norm(size):
     bytes_norm = []
     for i in range(BYTE_SIZE):
-        bytes_norm.append(math.floor((i / 4096.0) * 10 ** 4) / 10 ** 4) # normalize lookup 0-255 to 4-digit float
+        bytes_norm.append(math.floor((i / size) * 10 ** 4) / 10 ** 4) # normalize lookup 0-255 to 4-digit float
 
     return bytes_norm
 
 
 class RedGymGlobalMemory:
     def __init__(self):
-        self.byte_to_float_norm = calc_byte_float_norm()
+        self.byte_to_float_norm = calc_byte_float_norm(4096.0)
 
 
 class RedGymEnvSupport:
@@ -104,8 +104,12 @@ class RedGymEnvSupport:
         with open(file_path, 'w') as file:
             file.write(output_str)
 
-    def normalize_np_array(self, np_array):
-        np_array = np.vectorize(lambda x: self.env.memory.byte_to_float_norm[int(x)])(np_array)
+    def normalize_np_array(self, np_array, lookup=True, size=256.0):
+        if lookup:
+            np_array = np.vectorize(lambda x: self.env.memory.byte_to_float_norm[int(x)])(np_array)
+        else:
+            np_array = np.vectorize(lambda x: int(x) / size)(np_array)
+
         return np_array
 
     def _save_current_frame(self):

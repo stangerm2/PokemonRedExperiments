@@ -1,5 +1,7 @@
 # Assuming these constants are defined in red_env_constants
 from math import floor
+
+import numpy as np
 from red_env_constants import *
 from ram_reader.red_memory_battle import *
 from ram_reader.red_memory_menus import BATTLE_MENU_STATES, RedRamMenuValues
@@ -93,7 +95,7 @@ class RedGymBattle:
             return
         
         _, party_head_hp = self.env.game.battle.get_player_party_head_hp()
-        _, enemy_head_hp = self.env.game.battle.get_enemy_head_pokemon_hp()
+        _, enemy_head_hp = self.env.game.battle.get_enemy_party_head_hp()
 
         if self.last_party_head_hp == 0:
             self.last_party_head_hp = party_head_hp
@@ -116,26 +118,34 @@ class RedGymBattle:
 
         return min(level_delta, len(self.LEVEL_DELTA_DECAY))
         
-    def _calc_avg_pokemon_level(self, pokemon):
-        return sum([level for level in pokemon]) / len(pokemon)
+    def _calc_avg_pokemon_level(self, pokemon):        
+        avg_level, size = 0, 0
+        for i, level in enumerate(pokemon):
+            if level == 0:
+                break
+
+            avg_level += level
+            size = i
+        
+        return avg_level / (size + 1)
     
     def _get_battle_turn_stats(self):
-        player = self.env.game.battle.get_player_fighting_pokemon_arr()
-        enemy = self.env.game.battle.get_enemy_fighting_pokemon_arr()
+        player = self.env.game.battle.get_player_party_head_modifiers()
+        enemy = self.env.game.battle.get_enemy_party_head_modifiers()
 
         player_hp_total, player_hp_avail = self.env.game.battle.get_player_party_head_hp()
-        enemy_hp_total, enemy_hp_avail = self.env.game.battle.get_enemy_head_pokemon_hp()
+        enemy_hp_total, enemy_hp_avail = self.env.game.battle.get_enemy_party_head_hp()
         return {
-            'player_pokemon' : player[0],
-            'enemy_pokemon' : enemy[1],
+            'player_pokemon' : self.env.game.battle.get_player_head_index(),
+            'enemy_pokemon' : self.env.game.battle.get_enemy_party_head_pokemon(),
             'player_effects_sum' : sum(player[1:]),
-            'enemy_effects_sum' : sum(enemy[7:]),
+            'enemy_effects_sum' : sum(enemy[3:]),
             'player_hp_total' : player_hp_total,
             'player_hp_avail' : player_hp_avail,
             'enemy_hp_total' : enemy_hp_total,
             'enemy_hp_avail' : enemy_hp_avail,
             'player_status' : self.env.game.battle.get_player_party_head_status(),
-            'enemy_status' : enemy[6],
+            'enemy_status' : self.env.game.battle.get_enemy_party_head_status(),
             'type_hint' : self.env.game.battle.get_battle_type_hint(),
         }
 
@@ -165,7 +175,7 @@ class RedGymBattle:
         avg_enemy_level = self._calc_avg_pokemon_level(self.env.game.battle.get_enemy_lineup_levels())
         avg_player_lvl = self._calc_avg_pokemon_level(self.env.game.player.get_player_lineup_levels())
         decay = self._calc_level_decay(avg_enemy_level, avg_player_lvl)
-    
+
         return self.LEVEL_DELTA_DECAY.get(decay, 0.001)
     
     def save_pre_action_battle(self):
@@ -345,3 +355,92 @@ class RedGymBattle:
         if self.total_party_hp_lost == 0:
             return 0
         return self.total_enemy_hp_lost / self.total_party_hp_lost
+    
+    def obs_battle_type(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((4, ), dtype=np.uint8)
+        
+        battle_type = np.array(self.env.game.battle.get_battle_type(), dtype=np.uint8)
+        binary_status = np.unpackbits(battle_type)[4:]
+
+        return binary_status.astype(np.uint8)
+
+    def obs_enemies_left(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((1, ), dtype=np.float32)
+
+        return self.env.support.normalize_np_array(np.array([self.env.game.battle.get_battles_pokemon_left()], dtype=np.float32) * 42)
+
+    def obs_player_head_index(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((1, ), dtype=np.uint8)
+
+        return np.array([self.env.game.battle.get_player_head_index()], dtype=np.uint8)
+    
+    def obs_player_head_pokemon(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((1, ), dtype=np.uint8)
+
+        return np.array([self.env.game.battle.get_player_head_pokemon()], dtype=np.uint8)
+
+    def obs_player_modifiers(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((6, ), dtype=np.float32)
+
+        return self.env.support.normalize_np_array(np.array(self.env.game.battle.get_player_party_head_modifiers(), dtype=np.float32))
+
+    def obs_enemy_head(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((1, ), dtype=np.uint8)
+
+        return np.array([self.env.game.battle.get_enemy_party_head_pokemon()], dtype=np.uint8)
+
+    def obs_enemy_level(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((1, ), dtype=np.float32)
+
+        return self.env.support.normalize_np_array(np.array([self.env.game.battle.get_enemy_party_head_level()], dtype=np.float32) * 2)
+
+    def obs_enemy_hp(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((2, ), dtype=np.float32)
+
+        return self.env.support.normalize_np_array(np.array(self.env.game.battle.get_enemy_party_head_hp(), dtype=np.float32), False, 705.0)
+
+    def obs_enemy_types(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((2, ), dtype=np.uint8)
+
+        return np.array(self.env.game.battle.get_enemy_party_head_types(), dtype=np.uint8)
+
+    def obs_enemy_modifiers(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((6, ), dtype=np.float32)
+
+        return self.env.support.normalize_np_array(np.array(self.env.game.battle.get_enemy_party_head_modifiers(), dtype=np.float32))
+
+    def obs_enemy_status(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((5, ), dtype=np.uint8)
+
+        # https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_data_structure_(Generation_I)#Status_conditions
+        # First 3 bits unused
+        status = self.env.game.battle.get_enemy_party_head_status()
+        status_array = np.array(status, dtype=np.uint8)
+        binary_status = np.unpackbits(status_array)[3:8]
+        return binary_status.astype(np.uint8)
+    
+    def obs_battle_moves_selected(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((2, ), dtype=np.uint8)
+
+        return np.array(self.env.game.battle.get_battle_turn_moves(), dtype=np.uint8)
+
+    def obs_type_hint(self):
+        if not self.env.game.battle.in_battle:
+            return np.zeros((4, ), dtype=np.uint8)
+                
+        hint = np.array(self.env.game.battle.get_battle_type_hint(), dtype=np.uint8)
+        binary_status = np.unpackbits(hint)[4:]
+
+        return binary_status.astype(np.uint8)
