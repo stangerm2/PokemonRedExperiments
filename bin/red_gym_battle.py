@@ -328,9 +328,10 @@ class RedGymBattle:
         return self.total_battle_turns / self.total_battles
 
     def get_kill_to_death(self):
-        if self.died == 0:
-            return 0
-        return (self.wild_pokemon_killed + self.trainer_pokemon_killed + self.gym_pokemon_killed) / self.died
+        died = self.died
+        if died == 0:
+            died = 1
+        return (self.wild_pokemon_killed + self.trainer_pokemon_killed + self.gym_pokemon_killed) / died
     
     def get_damage_done_vs_taken(self):
         if self.total_party_hp_lost == 0:
