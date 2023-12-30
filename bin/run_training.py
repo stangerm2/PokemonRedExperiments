@@ -73,14 +73,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
         )
 
-        # Battle Turn Class
-        self.battle_turn_fc = nn.Sequential(
-            nn.Linear(613, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, 32),
-            nn.ReLU(),
-        )
-
         # Enemy Battle Class
         self.enemy_battle_fc = nn.Sequential(
             nn.Linear(324, features_dim),
@@ -88,13 +80,17 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
+        
+        # Battle Turn Class
+        self.battle_turn_fc = nn.Sequential(
+            nn.Linear(613, features_dim),
+            nn.ReLU(),
+        )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1004, 256),
+            nn.Linear(1036, features_dim),
             nn.ReLU(),
-            nn.Linear(256, features_dim),
-            nn.ReLU()
         )
 
     def forward(self, observations):
