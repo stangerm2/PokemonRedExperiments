@@ -44,8 +44,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.move_fc = nn.Sequential(
             nn.Linear(6168, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
-            nn.ReLU(),
         )
 
         # Pokemon Class
@@ -53,23 +51,17 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.pokemon_fc = nn.Sequential(
             nn.Linear(1938, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
-            nn.ReLU(),
         )
 
         # Player Class
         self.player_fc = nn.Sequential(
-            nn.Linear(96, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, 32),
+            nn.Linear(128, features_dim),
             nn.ReLU(),
         )
 
         # Player Fighter Class
         self.player_fighter_fc = nn.Sequential(
-            nn.Linear(305, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
+            nn.Linear(337, features_dim),
             nn.ReLU(),
         )
 
@@ -77,19 +69,19 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.enemy_battle_fc = nn.Sequential(
             nn.Linear(324, features_dim),
             nn.ReLU(),
-            nn.Linear(features_dim, 32),
-            nn.ReLU(),
         )
         
         # Battle Turn Class
         self.battle_turn_fc = nn.Sequential(
-            nn.Linear(613, features_dim),
+            nn.Linear(645, features_dim),
             nn.ReLU(),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1036, features_dim),
+            nn.Linear(1036, 256),
+            nn.ReLU(),
+            nn.Linear(256, features_dim),
             nn.ReLU(),
         )
 
@@ -254,7 +246,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         #env_config['debug'] = True
