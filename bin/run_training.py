@@ -34,22 +34,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Game Embeddings
-        #self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
-        #self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
+        self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
+        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.move_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 16))
 
         self.move_fc = nn.Sequential(
-            nn.Linear(6168, features_dim),
+            nn.Linear(216, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
 
         # Pokemon Class
+        self.player_pokemon_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
+        self.player_types_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.player_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 32))
         self.pokemon_fc = nn.Sequential(
-            nn.Linear(1938, features_dim),
+            nn.Linear(222, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -57,32 +63,42 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self.player_fc = nn.Sequential(
             nn.Linear(96, features_dim),
             nn.ReLU(),
+            nn.Linear(features_dim, 32),
+            nn.ReLU(),
         )
 
         # Player Fighter Class
+        self.player_head_index_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
+        self.player_head_pokemon_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.player_fighter_fc = nn.Sequential(
-            nn.Linear(273, features_dim),
+            nn.Linear(58, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
         # Enemy Battle Class
+        self.enemy_head_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.enemy_battle_fc = nn.Sequential(
-            nn.Linear(324, features_dim),
+            nn.Linear(38, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
         
         # Battle Turn Class
+        self.move_selection_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.battle_turn_fc = nn.Sequential(
-            nn.Linear(517, features_dim),
+            nn.Linear(117, features_dim),
             nn.ReLU(),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1292, 256),
+            nn.Linear(928, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
 
     def forward(self, observations):
@@ -101,34 +117,29 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         coordinates_features = self.coordinates_fc(coordinates_input)
 
         # Game Embeddings
-        #action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
-        #game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
-        action_features = observations["action"].int().view(batch_size, -1)
-        game_state_features = observations["game_state"].int().view(batch_size, -1)
+        action_features = self.action_embedding(observations["action"].to(torch.int)).view(batch_size, -1)
+        game_state_features = self.game_state_embedding(observations["game_state"].to(torch.int)).view(batch_size, -1)
 
         # Move Class
-        #player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
-        player_moves_input = observations["player_moves"].view(batch_size, -1)
+        player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
         player_pp = observations["player_pp"].view(batch_size, -1)
 
         moves_input = torch.cat([
             player_moves_input,
             player_pp
-
         ], dim=1)
-
         moves_features = self.move_fc(moves_input)
         #moves_features = self.move_max_pool(moves_input.unsqueeze(1)).squeeze(1)  # TODO: Try with and without pooling
 
 
         # Pokemon Class
-        player_pokemon_input = observations["player_pokemon"].view(batch_size, -1)
+        player_pokemon_input = self.player_pokemon_embedding(observations["player_pokemon"].to(torch.int)).view(batch_size, -1)
         player_levels_input = observations["player_levels"].view(batch_size, -1)
-        player_types_input = observations["player_types"].view(batch_size, -1)
+        player_types_input = self.player_types_embedding(observations["player_types"].to(torch.int)).view(batch_size, -1)
         player_hp_input = observations["player_hp"].view(batch_size, -1)
         player_xp_input = observations["player_xp"].view(batch_size, -1)
         player_stats_input = observations["player_stats"].view(batch_size, -1)
-        player_status_input = observations["player_status"].view(batch_size, -1)
+        player_status_input = observations["player_status"].view(batch_size, -1)  # OneHot encoded
 
         pokemon_input = torch.cat([
             player_pokemon_input,
@@ -149,11 +160,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             pokemon_features,
             moves_features,
         ], dim=1)
-        #player_features = self.player_fc(player_input)
+        player_features = self.player_fc(player_input)
 
         # Player Fighter Class
-        player_head_index = observations["player_head_index"].view(batch_size, -1)
-        player_head_pokemon = observations["player_head_pokemon"].view(batch_size, -1)
+        player_head_index = self.player_head_index_embedding(observations["player_head_index"].to(torch.int)).view(batch_size, -1)
+        player_head_pokemon = self.player_head_pokemon_embedding(observations["player_head_pokemon"].to(torch.int)).view(batch_size, -1)
         player_modifiers_input = observations["player_modifiers"].view(batch_size, -1)
         type_hint_input = observations["type_hint"].view(batch_size, -1)
 
@@ -162,18 +173,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             player_head_pokemon,
             player_modifiers_input,
             type_hint_input,
-            #player_features,  # TODO: Can we focus on just the head pokemon?, and breakout player to global fc
+            player_features,  # TODO: Can we focus on just the head pokemon?, and breakout player to global fc
         ], dim=1)
         player_fighter_features = self.player_fighter_fc(player_fighter_input)
 
 
         # Enemy Battle Class
-        enemy_head_input = observations["enemy_head"].view(batch_size, -1)
+        enemy_head_input = self.enemy_head_embedding(observations["enemy_head"].to(torch.int)).view(batch_size, -1)
         enemy_level_input = observations["enemy_level"].view(batch_size, -1)
         enemy_hp_input = observations["enemy_hp"].view(batch_size, -1)
-        enemy_types_input = observations["enemy_types"].view(batch_size, -1)
+        enemy_types_input = self.enemy_head_embedding(observations["enemy_types"].to(torch.int)).view(batch_size, -1)
         enemy_modifiers_input = observations["enemy_modifiers"].view(batch_size, -1)
-        enemy_status_input = observations["enemy_status"].view(batch_size, -1)
+        enemy_status_input = observations["enemy_status"].view(batch_size, -1)  # OneHot
 
         enemy_battle_input = torch.cat([
             enemy_head_input,
@@ -187,16 +198,16 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
 
         # Battle Turn Class
-        battle_type_input = observations["battle_type"].view(batch_size, -1)
+        battle_type_input = observations["battle_type"].view(batch_size, -1)  # OneHot
         enemies_left_input = observations["enemies_left"].view(batch_size, -1)
-        move_selection_input = observations["move_selection"].view(batch_size, -1)
+        move_selection_input = self.move_selection_embedding(observations["move_selection"].to(torch.int)).view(batch_size, -1)
 
         battle_turn_input = torch.cat([
             battle_type_input,
             enemies_left_input,
             move_selection_input,
-            #player_fighter_features,
-            #enemy_battle_features,
+            player_fighter_features,
+            enemy_battle_features,
         ], dim=1)
         battle_turn_features = self.battle_turn_fc(battle_turn_input)
 
@@ -207,12 +218,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             coordinates_features,
             action_features, 
             game_state_features,
-            #battle_features,
-            moves_features,
-            pokemon_features,
-            player_fighter_features,
-            enemy_battle_features,
             battle_turn_features,
+            #battle_features,
         ], dim=1)
 
         # Ensure the input size to fc_combined matches the concatenated features size
@@ -250,7 +257,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         #env_config['debug'] = True
