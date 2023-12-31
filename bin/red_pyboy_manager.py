@@ -53,7 +53,7 @@ class PyBoyManager:
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
         self.action = None
-        self.action_history = np.zeros((1,), dtype=np.uint8)
+        self.action_history = np.zeros((15,), dtype=np.uint8)
         self.move_accepted = True
         
         self.setup_pyboy()
@@ -89,8 +89,9 @@ class PyBoyManager:
     
     def _update_action_obs(self, input):
         # NOTE: If action history is wanted, needs testing
-        # self.action_history = np.roll(self.action_history, 1)
+        self.action_history = np.roll(self.action_history, 1)
         self.action_history[0] = input
+        return self.action_history
 
     def a_button_selected(self):
         if self.action == WindowEvent.PRESS_BUTTON_A:

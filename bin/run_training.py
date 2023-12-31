@@ -20,8 +20,6 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
-        self.memory = np.zeros((15, 64))
-
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
@@ -36,12 +34,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU()
         )
 
+        # Game Class
+        self.game_state_lstm = nn.LSTM(input_size=1860, hidden_size=features_dim, batch_first=True)
+
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.move_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 16))
 
         self.move_fc = nn.Sequential(
-            nn.Linear(6168, features_dim),
+            nn.Linear(4032, features_dim),
             nn.ReLU(),
             nn.Linear(features_dim, 32),
             nn.ReLU(),
@@ -88,19 +89,12 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1036, 256),
+            nn.Linear(976, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
         )
 
-        self.history_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 64))
-        self.fc_history = nn.Sequential(
-            nn.Linear(64 * 15, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
-            nn.ReLU()
-        )
 
     def forward(self, observations):
         # Explicitly use batch_size for reshaping, after n_steps there will be a big batch
@@ -119,10 +113,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         coordinates_features = self.coordinates_fc(coordinates_input).to(device)
 
         # Game Embeddings
-        #action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
-        #game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
-        action_features = observations["action"].int().view(batch_size, -1).to(device)
-        game_state_features = observations["game_state"].int().view(batch_size, -1).to(device)
+        action_input = observations["action"].int().view(batch_size, -1).to(device).float()
+        game_state_input = observations["game_state"].int().view(batch_size, -1).to(device).float()
+        game_input = torch.cat([
+            action_input,
+            game_state_input,
+        ], dim=1)
+
+        game_state_lstm_features, _ = self.game_state_lstm(game_input)
 
         # Move Class
         #player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
@@ -223,28 +221,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         combined_input = torch.cat([
             screen_features,
             coordinates_features,
-            action_features, 
-            game_state_features,
+            game_state_lstm_features,
             battle_turn_features,
             #battle_features,
         ], dim=1)
 
 
-        # Detach and convert to numpy
-        combined_features = self.fc_layers(combined_input).to(device)
-        if batch_size != 1:
-            return combined_features
+        return self.fc_layers(combined_input).to(device)
 
-        combined_features = combined_features.detach().cpu().numpy()
-
-        self.memory = np.roll(self.memory, -1, axis=0)
-        self.memory[-1, :] = combined_features
-            
-        flattened_memory = self.memory.flatten()
-        observation = self.fc_history(torch.tensor(flattened_memory, dtype=torch.float32).to(device))
-
-        return observation
-    
 
 def make_env(thread_id, env_conf, seed=0):
     """
@@ -287,7 +271,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
-    #env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
+    # env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')

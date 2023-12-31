@@ -57,38 +57,38 @@ def initialize_observation_space(extra_buttons):
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
-            "action": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
+            "action": spaces.Discrete(7),
 
             # Game:
             "game_state": spaces.Discrete(125),
 
             # Player:
-            "player_pokemon": spaces.Box(low=0, high=255, shape=(6,), dtype=np.uint8),
-            "player_levels": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
-            "player_types": spaces.Box(low=0, high=26, shape=(6, 2), dtype=np.uint8),
+            "player_pokemon": spaces.MultiDiscrete([256] * 6),
+            "player_levels": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "player_types": spaces.MultiDiscrete([27] * 2 * 6,),
             "player_hp": spaces.Box(low=0, high=1, shape=(6, 2), dtype=np.float32),
-            "player_moves": spaces.Box(low=0, high=255, shape=(6, 4), dtype=np.uint8),
-            "player_xp": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
+            "player_moves": spaces.MultiDiscrete([256] * 6 * 4, ),
+            "player_xp": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
             "player_pp": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
             "player_stats": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
-            "player_status": spaces.Box(low=0, high=1, shape=(30,), dtype=np.uint8),
+            "player_status": spaces.MultiBinary(6 * 5),
 
             #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
 
             # Battle
-            "battle_type": spaces.Box(low=0, high=1, shape=(4,), dtype=np.uint8),
-            "enemies_left": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "player_head_index": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
-            "player_head_pokemon": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
-            "player_modifiers": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
-            "enemy_head": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
-            "enemy_level": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "enemy_hp": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32),
-            "enemy_types": spaces.Box(low=0, high=26, shape=(2,), dtype=np.uint8),
-            "enemy_modifiers": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
-            "enemy_status": spaces.Box(low=0, high=1, shape=(5,), dtype=np.uint8),
-            "move_selection": spaces.Box(low=0, high=255, shape=(2,), dtype=np.uint8),
-            "type_hint": spaces.Box(low=0, high=1, shape=(4,), dtype=np.float32),
+            "battle_type": spaces.MultiBinary(4),
+            "enemies_left": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
+            "player_head_index": spaces.MultiDiscrete([7]),
+            "player_head_pokemon": spaces.MultiDiscrete([256]),
+            "player_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "enemy_head": spaces.MultiDiscrete([256]),
+            "enemy_level": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
+            "enemy_hp": spaces.Box(low=0, high=1, shape=(2, ), dtype=np.float32),
+            "enemy_types": spaces.MultiDiscrete([27] * 2, ),
+            "enemy_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+            "enemy_status": spaces.MultiBinary(5),
+            "move_selection": spaces.MultiDiscrete([256] * 2),
+            "type_hint": spaces.MultiBinary(4),
         }
     )
 
