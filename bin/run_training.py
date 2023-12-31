@@ -2,6 +2,8 @@ import os
 from os.path import exists
 from pathlib import Path
 import uuid
+
+import numpy as np
 from red_gym_env import RedGymEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -18,6 +20,7 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+        self.memory = np.zeros((15, 64))
 
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
@@ -33,27 +36,21 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU()
         )
 
-        # Game Embeddings
-        self.action_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
-        self.game_state_embedding = nn.Embedding(num_embeddings=117, embedding_dim=8)
-
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.move_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 16))
 
         self.move_fc = nn.Sequential(
-            nn.Linear(216, features_dim),
+            nn.Linear(6168, features_dim),
             nn.ReLU(),
             nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
 
         # Pokemon Class
-        self.player_pokemon_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.player_types_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.player_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 32))
         self.pokemon_fc = nn.Sequential(
-            nn.Linear(222, features_dim),
+            nn.Linear(1938, features_dim),
             nn.ReLU(),
             nn.Linear(features_dim, features_dim),
             nn.ReLU(),
@@ -68,78 +65,88 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Player Fighter Class
-        self.player_head_index_embedding = nn.Embedding(num_embeddings=7, embedding_dim=8)
-        self.player_head_pokemon_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
         self.player_fighter_fc = nn.Sequential(
-            nn.Linear(58, features_dim),
+            nn.Linear(305, features_dim),
             nn.ReLU(),
             nn.Linear(features_dim, features_dim),
             nn.ReLU(),
         )
 
-        # Enemy Battle Class
-        self.enemy_head_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.enemy_battle_fc = nn.Sequential(
-            nn.Linear(38, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, 32),
+        # Battle Turn Class
+        self.battle_turn_fc = nn.Sequential(
+            nn.Linear(613, features_dim),
             nn.ReLU(),
         )
-        
-        # Battle Turn Class
-        self.move_selection_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
-        self.battle_turn_fc = nn.Sequential(
-            nn.Linear(117, features_dim),
+
+        # Enemy Battle Class
+        self.enemy_battle_fc = nn.Sequential(
+            nn.Linear(324, features_dim),
+            nn.ReLU(),
+            nn.Linear(features_dim, 32),
             nn.ReLU(),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(928, 256),
+            nn.Linear(1036, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
+            nn.ReLU()
+        )
+
+        self.history_max_pool = nn.AdaptiveMaxPool2d(output_size=(1, 64))
+        self.fc_history = nn.Sequential(
+            nn.Linear(64 * 15, features_dim),
             nn.ReLU(),
+            nn.Linear(features_dim, features_dim),
+            nn.ReLU()
         )
 
     def forward(self, observations):
         # Explicitly use batch_size for reshaping, after n_steps there will be a big batch
-        batch_size = observations["visited"].size(0) 
+        batch_size = observations["visited"].size(0)
+        device = observations["screen"].device  # Assuming 'screen' is part of your observations
 
         combined_input = torch.cat([observations["screen"].unsqueeze(1),
                                     observations["visited"].unsqueeze(1),
                                     observations["walkable"].unsqueeze(1)], dim=1)
 
         # Apply CNN to spatial inputs
-        screen_features = self.cnn(combined_input)
+        screen_features = self.cnn(combined_input).to(device)
 
         # Process 'coordinates' and pass through fully connected layer
         coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_features = self.coordinates_fc(coordinates_input)
+        coordinates_features = self.coordinates_fc(coordinates_input).to(device)
 
         # Game Embeddings
-        action_features = self.action_embedding(observations["action"].to(torch.int)).view(batch_size, -1)
-        game_state_features = self.game_state_embedding(observations["game_state"].to(torch.int)).view(batch_size, -1)
+        #action_features = self.action_embedding(observations["action"].int()).view(batch_size, -1)
+        #game_state_features = self.game_state_embedding(observations["game_state"].int()).view(batch_size, -1)
+        action_features = observations["action"].int().view(batch_size, -1).to(device)
+        game_state_features = observations["game_state"].int().view(batch_size, -1).to(device)
 
         # Move Class
-        player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
+        #player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
+        player_moves_input = observations["player_moves"].view(batch_size, -1)
         player_pp = observations["player_pp"].view(batch_size, -1)
 
         moves_input = torch.cat([
             player_moves_input,
             player_pp
+
         ], dim=1)
-        moves_features = self.move_fc(moves_input)
+
+        moves_features = self.move_fc(moves_input).to(device)
         #moves_features = self.move_max_pool(moves_input.unsqueeze(1)).squeeze(1)  # TODO: Try with and without pooling
 
 
         # Pokemon Class
-        player_pokemon_input = self.player_pokemon_embedding(observations["player_pokemon"].to(torch.int)).view(batch_size, -1)
+        player_pokemon_input = observations["player_pokemon"].view(batch_size, -1)
         player_levels_input = observations["player_levels"].view(batch_size, -1)
-        player_types_input = self.player_types_embedding(observations["player_types"].to(torch.int)).view(batch_size, -1)
+        player_types_input = observations["player_types"].view(batch_size, -1)
         player_hp_input = observations["player_hp"].view(batch_size, -1)
         player_xp_input = observations["player_xp"].view(batch_size, -1)
         player_stats_input = observations["player_stats"].view(batch_size, -1)
-        player_status_input = observations["player_status"].view(batch_size, -1)  # OneHot encoded
+        player_status_input = observations["player_status"].view(batch_size, -1)
 
         pokemon_input = torch.cat([
             player_pokemon_input,
@@ -151,7 +158,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             player_status_input,
         ], dim=1)
         
-        pokemon_features = self.pokemon_fc(pokemon_input)
+        pokemon_features = self.pokemon_fc(pokemon_input).to(device)
         #pokemon_features = self.player_max_pool(pokemon_input.unsqueeze(1)).squeeze(1)  # TODO: Try with and without pooling
 
 
@@ -160,11 +167,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             pokemon_features,
             moves_features,
         ], dim=1)
-        player_features = self.player_fc(player_input)
+        player_features = self.player_fc(player_input).to(device)
 
         # Player Fighter Class
-        player_head_index = self.player_head_index_embedding(observations["player_head_index"].to(torch.int)).view(batch_size, -1)
-        player_head_pokemon = self.player_head_pokemon_embedding(observations["player_head_pokemon"].to(torch.int)).view(batch_size, -1)
+        player_head_index = observations["player_head_index"].view(batch_size, -1)
+        player_head_pokemon = observations["player_head_pokemon"].view(batch_size, -1)
         player_modifiers_input = observations["player_modifiers"].view(batch_size, -1)
         type_hint_input = observations["type_hint"].view(batch_size, -1)
 
@@ -175,16 +182,16 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             type_hint_input,
             player_features,  # TODO: Can we focus on just the head pokemon?, and breakout player to global fc
         ], dim=1)
-        player_fighter_features = self.player_fighter_fc(player_fighter_input)
+        player_fighter_features = self.player_fighter_fc(player_fighter_input).to(device)
 
 
         # Enemy Battle Class
-        enemy_head_input = self.enemy_head_embedding(observations["enemy_head"].to(torch.int)).view(batch_size, -1)
+        enemy_head_input = observations["enemy_head"].view(batch_size, -1)
         enemy_level_input = observations["enemy_level"].view(batch_size, -1)
         enemy_hp_input = observations["enemy_hp"].view(batch_size, -1)
-        enemy_types_input = self.enemy_head_embedding(observations["enemy_types"].to(torch.int)).view(batch_size, -1)
+        enemy_types_input = observations["enemy_types"].view(batch_size, -1)
         enemy_modifiers_input = observations["enemy_modifiers"].view(batch_size, -1)
-        enemy_status_input = observations["enemy_status"].view(batch_size, -1)  # OneHot
+        enemy_status_input = observations["enemy_status"].view(batch_size, -1)
 
         enemy_battle_input = torch.cat([
             enemy_head_input,
@@ -194,13 +201,13 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             enemy_modifiers_input,
             enemy_status_input,
         ], dim=1)
-        enemy_battle_features = self.enemy_battle_fc(enemy_battle_input)
+        enemy_battle_features = self.enemy_battle_fc(enemy_battle_input).to(device)
 
 
         # Battle Turn Class
-        battle_type_input = observations["battle_type"].view(batch_size, -1)  # OneHot
+        battle_type_input = observations["battle_type"].view(batch_size, -1)
         enemies_left_input = observations["enemies_left"].view(batch_size, -1)
-        move_selection_input = self.move_selection_embedding(observations["move_selection"].to(torch.int)).view(batch_size, -1)
+        move_selection_input = observations["move_selection"].view(batch_size, -1)
 
         battle_turn_input = torch.cat([
             battle_type_input,
@@ -209,11 +216,11 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             player_fighter_features,
             enemy_battle_features,
         ], dim=1)
-        battle_turn_features = self.battle_turn_fc(battle_turn_input)
+        battle_turn_features = self.battle_turn_fc(battle_turn_input).to(device)
 
 
         # Final FC layer
-        combined_features = torch.cat([
+        combined_input = torch.cat([
             screen_features,
             coordinates_features,
             action_features, 
@@ -222,9 +229,22 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             #battle_features,
         ], dim=1)
 
-        # Ensure the input size to fc_combined matches the concatenated features size
-        return self.fc_layers(combined_features)
 
+        # Detach and convert to numpy
+        combined_features = self.fc_layers(combined_input).to(device)
+        if batch_size != 1:
+            return combined_features
+
+        combined_features = combined_features.detach().cpu().numpy()
+
+        self.memory = np.roll(self.memory, -1, axis=0)
+        self.memory[-1, :] = combined_features
+            
+        flattened_memory = self.memory.flatten()
+        observation = self.fc_history(torch.tensor(flattened_memory, dtype=torch.float32).to(device))
+
+        return observation
+    
 
 def make_env(thread_id, env_conf, seed=0):
     """
@@ -267,7 +287,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
-    # env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
+    #env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
@@ -291,7 +311,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../' + "saved_runs/session_e2a8cbc1/poke_6348800_steps.zip"
+    #file_name = '../' + "saved_runs/session_775fff0c/poke_14729216_steps.zip"
 
     model = None
     checkpoint_exists = exists(file_name)

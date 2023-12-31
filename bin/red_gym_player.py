@@ -27,13 +27,13 @@ class RedGymPlayer:
         return np.array(self.env.support.normalize_np_array(self.env.game.player.get_player_lineup_levels()), dtype=np.float32)
     
     def obs_player_types(self):
-        return np.array(self.env.game.player.get_player_lineup_types(), dtype=np.uint8)
+        return np.array(self.env.game.player.get_player_lineup_types(), dtype=np.uint8).reshape(12, )
     
     def obs_player_health(self):
         return np.array(self.env.support.normalize_np_array(self.env.game.player.get_player_lineup_health(), False, 705), dtype=np.float32)
     
     def obs_player_moves(self):
-        return np.array(self.env.game.player.get_player_lineup_moves(), dtype=np.uint8)
+        return np.array(self.env.game.player.get_player_lineup_moves(), dtype=np.uint8).reshape(24, )
     
     def obs_player_xp(self):
         return np.array(self.env.support.normalize_np_array(self.env.game.player.get_player_lineup_xp(), False, 250000), dtype=np.float32)
