@@ -29,13 +29,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Fully connected layer for coordinates
+        self.coordinates_lstm = nn.LSTM(input_size=360, hidden_size=features_dim, batch_first=True)
         self.coordinates_fc = nn.Sequential(
-            nn.Linear(3 * 7, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.Linear(features_dim, features_dim),  # Flattened size of coordinates, repeated 3 times
             nn.ReLU()
         )
 
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size=1320, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size=1980, hidden_size=features_dim, batch_first=True)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
@@ -110,6 +111,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Process 'coordinates' and pass through fully connected layer
         coordinates_input = observations["coordinates"].view(batch_size, -1)
+        coordinates_input, _ = self.coordinates_lstm(coordinates_input)
         coordinates_features = self.coordinates_fc(coordinates_input).to(device)
 
         # Game Embeddings
@@ -261,7 +263,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 124  # Also sets the number of episodes per training iteration
+    num_cpu = 1  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         #env_config['debug'] = True

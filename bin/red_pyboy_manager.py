@@ -53,7 +53,7 @@ class PyBoyManager:
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
         self.action = None
-        self.action_history = np.zeros((10,), dtype=np.uint8)
+        self.action_history = np.zeros((OBSERVATION_MEMORY_SIZE,), dtype=np.uint8)
         self.move_accepted = True
         
         self.setup_pyboy()
@@ -88,7 +88,6 @@ class PyBoyManager:
         return bin(256 + self.get_memory_value(addr))[-bit - 1] == '1'
     
     def _update_action_obs(self, input):
-        # NOTE: If action history is wanted, needs testing
         self.action_history = np.roll(self.action_history, 1)
         self.action_history[0] = input
         return self.action_history

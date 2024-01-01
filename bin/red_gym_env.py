@@ -56,11 +56,11 @@ def initialize_observation_space(extra_buttons):
             "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
+            "coordinates": spaces.Box(low=0, high=1, shape=(OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32),
 
             # Game:
-            "action": spaces.MultiDiscrete([7] * 10),
-            "game_state": spaces.MultiDiscrete([125] * 10),
+            "action": spaces.MultiDiscrete([7] * OBSERVATION_MEMORY_SIZE),
+            "game_state": spaces.MultiDiscrete([125] * OBSERVATION_MEMORY_SIZE),
 
             # Player:
             "player_pokemon": spaces.MultiDiscrete([256] * 6),
@@ -227,24 +227,23 @@ class RedGymEnv(Env):
 
     def _get_observation(self):
         self.map.update_map_obs()
-        enemy_type_1, enemy_type_2 = self.game.battle.get_enemy_party_head_types()
 
         observation = {
             # Game View:
             "screen":      self.map.screen,
             "visited":     self.map.visited,
             "walkable":    self.map.walkable,
-            "action":      self.gameboy.action_history,
             "coordinates": self.map.coordinates,
 
             # Game:
-            "game_state": self.player.obs_game_state(),
+            "action":      self.gameboy.action_history,
+            "game_state":  self.player.obs_game_state(),
 
             # Player:
             "player_pokemon":    self.player.obs_player_pokemon(),
             "player_levels":     self.player.obs_player_levels(),
             "player_types":      self.player.obs_player_types(),
-            "player_hp":     self.player.obs_player_health(),
+            "player_hp":         self.player.obs_player_health(),
             "player_moves":      self.player.obs_player_moves(),
             "player_xp":         self.player.obs_player_xp(),
             "player_pp":         self.player.obs_player_pp(),

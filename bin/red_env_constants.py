@@ -2,6 +2,7 @@
 
 # Constants for RedGymEnv
 BYTE_SIZE = 256
+BITS_PER_BYTE = 8
 VEC_DIM = 4320
 NUM_ELEMENTS = 20000
 MAX_STEP_MEMORY = 2000
@@ -22,5 +23,6 @@ SCREEN_VIEW_SIZE = 7
 NEXT_STEP_VISITED = 13  # Num of pos's that are within two moves from cur pos + cur pos
 PYBOY_RUN_SPEED = 6
 MAP_VALUE_PALLET_TOWN = 12
+OBSERVATION_MEMORY_SIZE = 15
 
 GLOBAL_SEED = 2

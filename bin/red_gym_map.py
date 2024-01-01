@@ -26,7 +26,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, SCREEN_VIEW_SIZE), dtype=np.uint8)  # x,y,map stacked, 7 bits as all val's are < 128
+        self.coordinates = np.zeros((OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked, 7 bits as all val's are < 128
 
         self.tester = RedGymObsTester(self)
 
@@ -53,31 +53,25 @@ class RedGymMap:
 
     def _update_pos_obs(self, x_pos_new, y_pos_new, n_map_new):
         try:
-            x_pos_binary = format(x_pos_new, f'0{SCREEN_VIEW_SIZE}b')
-            y_pos_binary = format(y_pos_new, f'0{SCREEN_VIEW_SIZE}b')
-            m_pos_binary = format(n_map_new, f'0{SCREEN_VIEW_SIZE}b')
+            x_pos_binary = format(x_pos_new, f'0{BITS_PER_BYTE}b')
+            y_pos_binary = format(y_pos_new, f'0{BITS_PER_BYTE}b')
+            m_pos_binary = format(n_map_new, f'0{BITS_PER_BYTE}b')
+
+            self.coordinates = np.roll(self.coordinates, 1, axis=0)
         
             # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
             for i, bit in enumerate(x_pos_binary):
-                self.coordinates[0][i] = bit
-                #self.screen[SCREEN_VIEW_SIZE][i] = bit
-                #self.visited[SCREEN_VIEW_SIZE][i] = bit
-                #self.walkable[SCREEN_VIEW_SIZE][i] = bit
+                self.coordinates[0][0][i] = bit
 
             for i, bit in enumerate(y_pos_binary):
-                self.coordinates[1][i] = bit
-                #self.screen[SCREEN_VIEW_SIZE + 1][i] = bit
-                #self.visited[SCREEN_VIEW_SIZE + 1][i] = bit
-                #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
+                self.coordinates[0][1][i] = bit
 
             for i, bit in enumerate(m_pos_binary):
-                self.coordinates[2][i] = bit
-                #self.screen[SCREEN_VIEW_SIZE + 2][i] = bit
-                #self.visited[SCREEN_VIEW_SIZE + 2][i] = bit
-                #self.walkable[SCREEN_VIEW_SIZE + 1][i] = bit
+                self.coordinates[0][2][i] = bit
         except Exception as e:
             print(f"An error occurred: {e}")
             self.env.support.save_and_print_info(False, True, True)
+            self.env.support.save_debug_string("An error occurred: {e}")
             assert(True)
 
     def _traverse_matrix(self, x_pos_new, y_pos_new, n_map_new, callback):
@@ -110,7 +104,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        self.coordinates = np.zeros((OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
