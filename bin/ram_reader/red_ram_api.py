@@ -52,15 +52,13 @@ class Game:
         GAME_MENU = 10
         BATTLE_TEXT = 11
         FOLLOWING_NPC = 12
-        NAME_POKEMON = 13
-        OVERWRITE_MOVE = 14
-        ABANDON_MOVE = 15
         GAME_STATE_UNKNOWN = 115
 
     
     # Order of precedence is important here, we want to check for battle first, then menus
     def process_game_states(self):
         ORDERED_GAME_STATES = [
+            self.menus.get_pre_battle_menu_state,  # For menu's that could be in both battle and non-battle states
             self.battle.get_battle_state,
             self.player.is_following_npc,
             self.menus.get_menu_state,
@@ -483,6 +481,28 @@ class Menus:
         cursor_location = (self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_LOCATION[0]),
                     self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_LOCATION[1]))
         return cursor_location, TEXT_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamMenuValues.UNKNOWN_MENU)
+    
+    def get_pre_battle_menu_state(self):
+        text_on_screen = self.env.ram_interface.read_memory(TEXT_FONT_ON_LOADED)
+        if not text_on_screen:
+            return self.env.GameState.GAME_STATE_UNKNOWN
+                
+        _, state = self.get_item_menu_context()
+        if state == RedRamMenuValues.MENU_YES or state == RedRamMenuValues.MENU_NO:
+            text_dst_ptr = self.env.ram_interface.read_memory(TEXT_DST_POINTER)
+            if text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_YES:
+                return RedRamMenuValues.OVERWRITE_MOVE_YES
+            elif text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_NO:
+                return RedRamMenuValues.OVERWRITE_MOVE_NO
+            elif text_dst_ptr == 0xB9 and state == RedRamMenuValues.MENU_YES:
+                return RedRamMenuValues.ABANDON_MOVE_YES
+            elif text_dst_ptr == 0xB9 and state == RedRamMenuValues.MENU_NO:
+                return RedRamMenuValues.ABANDON_MOVE_NO
+            elif text_dst_ptr == 0xEE or text_dst_ptr == 0xF0:  # would otherwise be default y/n on a text screen
+                return self.env.GameState.TALKING
+            
+        return self.env.GameState.GAME_STATE_UNKNOWN
+
 
     def get_menu_state(self):
         text_on_screen = self.env.ram_interface.read_memory(TEXT_FONT_ON_LOADED)
