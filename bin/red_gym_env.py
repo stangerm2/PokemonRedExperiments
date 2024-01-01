@@ -60,7 +60,7 @@ def initialize_observation_space(extra_buttons):
             "action": spaces.Discrete(7),
 
             # Game:
-            "game_state": spaces.Discrete(117),
+            "game_state": spaces.Discrete(125),
 
             # Player:
             "player_pokemon": spaces.MultiDiscrete([256] * 6),

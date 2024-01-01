@@ -487,9 +487,9 @@ class Menus:
         if not text_on_screen:
             return self.env.GameState.GAME_STATE_UNKNOWN
                 
-        _, state = self.get_item_menu_context()
+        cursor_location, state = self.get_item_menu_context()
+        text_dst_ptr = self.env.ram_interface.read_memory(TEXT_DST_POINTER)
         if state == RedRamMenuValues.MENU_YES or state == RedRamMenuValues.MENU_NO:
-            text_dst_ptr = self.env.ram_interface.read_memory(TEXT_DST_POINTER)
             if text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_YES:
                 return RedRamMenuValues.OVERWRITE_MOVE_YES
             elif text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_NO:
@@ -500,6 +500,12 @@ class Menus:
                 return RedRamMenuValues.ABANDON_MOVE_NO
             elif text_dst_ptr == 0xEE or text_dst_ptr == 0xF0:  # would otherwise be default y/n on a text screen
                 return self.env.GameState.TALKING
+        elif cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_N and text_dst_ptr == 0xB9:  # Overwrite one off shared menu
+            return RedRamMenuValues.OVERWRITE_MOVE_1
+        elif (cursor_location == RedRamMenuKeys.OVERWRITE_MOVE_2 or
+               cursor_location == RedRamMenuKeys.OVERWRITE_MOVE_3 or
+                 cursor_location == RedRamMenuKeys.OVERWRITE_MOVE_4) and text_dst_ptr == 0xB9:
+            return state
             
         return self.env.GameState.GAME_STATE_UNKNOWN
 

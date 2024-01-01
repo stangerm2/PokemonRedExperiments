@@ -69,6 +69,10 @@ class RedRamMenuKeys:
     BATTLE_MENU_RUN = (0xEF, 0xC4)
     MENU_YES = (0x4F, 0xC4)
     MENU_NO = (0x77, 0xC4)
+    # OVERWRITE_MOVE_1 = (0x45, 0xC4)  shared with BATTLE_MART_PC_ITEM_N, has to be overwritten
+    OVERWRITE_MOVE_2 = (0x59, 0xC4)
+    OVERWRITE_MOVE_3 = (0x6D, 0xC4)
+    OVERWRITE_MOVE_4 = (0x81, 0xC4)
     # TODO: Get Nickname state and add it to filter list (0xC4C0 text nickname key hack?)
 
     MENU_NO_HACK = (0x69, 0xC4)
@@ -167,6 +171,10 @@ class RedRamMenuValues(IntEnum):
     OVERWRITE_MOVE_NO = 98
     ABANDON_MOVE_YES = 99
     ABANDON_MOVE_NO = 100
+    OVERWRITE_MOVE_1 = 101
+    OVERWRITE_MOVE_2 = 102
+    OVERWRITE_MOVE_3 = 103
+    OVERWRITE_MOVE_4 = 104
 
 
 BATTLE_MENU_STATES = {
@@ -251,7 +259,11 @@ TEXT_MENU_CURSOR_LOCATIONS = {
 
     RedRamMenuKeys.MENU_YES: RedRamMenuValues.MENU_YES,
     RedRamMenuKeys.MENU_NO: RedRamMenuValues.MENU_NO,
-    RedRamMenuKeys.MENU_NO_HACK: RedRamMenuValues.MENU_NO
+    RedRamMenuKeys.MENU_NO_HACK: RedRamMenuValues.MENU_NO,
+
+    RedRamMenuKeys.OVERWRITE_MOVE_2: RedRamMenuValues.OVERWRITE_MOVE_2,
+    RedRamMenuKeys.OVERWRITE_MOVE_3: RedRamMenuValues.OVERWRITE_MOVE_3,
+    RedRamMenuKeys.OVERWRITE_MOVE_4: RedRamMenuValues.OVERWRITE_MOVE_4,
 }
 
 # The count when buying/selling items
