@@ -53,7 +53,7 @@ class PyBoyManager:
         self.pyboy = None
         self.valid_actions = pyboy_init_actions(self.env.extra_buttons)
         self.action = None
-        self.action_history = np.zeros((15,), dtype=np.uint8)
+        self.action_history = np.zeros((10,), dtype=np.uint8)
         self.move_accepted = True
         
         self.setup_pyboy()

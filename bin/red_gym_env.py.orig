@@ -57,38 +57,50 @@ def initialize_observation_space(extra_buttons):
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "coordinates": spaces.Box(low=0, high=1, shape=(3, 7), dtype=np.uint8),
+<<<<<<< HEAD
+            "action": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
 
             # Game:
-            "action": spaces.MultiDiscrete([7] * 10),
-            "game_state": spaces.MultiDiscrete([125] * 10),
+            "game_state": spaces.Discrete(125),
+=======
+            "action": spaces.MultiDiscrete([7] * 15),
+
+            # Game:
+            "game_state": spaces.MultiDiscrete([117] * 15),
+>>>>>>> 780fe55 (TEST: lstm_action_game_memory_stateless)
 
             # Player:
-            "player_pokemon": spaces.MultiDiscrete([256] * 6),
-            "player_levels": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
-            "player_types": spaces.MultiDiscrete([27] * 2 * 6,),
+            "player_pokemon": spaces.Box(low=0, high=255, shape=(6,), dtype=np.uint8),
+            "player_levels": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
+            "player_types": spaces.Box(low=0, high=26, shape=(6, 2), dtype=np.uint8),
             "player_hp": spaces.Box(low=0, high=1, shape=(6, 2), dtype=np.float32),
+<<<<<<< HEAD
+            "player_moves": spaces.Box(low=0, high=255, shape=(6, 4), dtype=np.uint8),
+            "player_xp": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
+=======
             "player_moves": spaces.MultiDiscrete([167] * 6 * 4, ),
             "player_xp": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
+>>>>>>> 780fe55 (TEST: lstm_action_game_memory_stateless)
             "player_pp": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
             "player_stats": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
-            "player_status": spaces.MultiBinary(6 * 5),
+            "player_status": spaces.Box(low=0, high=1, shape=(30,), dtype=np.uint8),
 
             #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
 
             # Battle
-            "battle_type": spaces.MultiBinary(4),
-            "enemies_left": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
-            "player_head_index": spaces.MultiDiscrete([7]),
-            "player_head_pokemon": spaces.MultiDiscrete([256]),
-            "player_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
-            "enemy_head": spaces.MultiDiscrete([256]),
-            "enemy_level": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
-            "enemy_hp": spaces.Box(low=0, high=1, shape=(2, ), dtype=np.float32),
-            "enemy_types": spaces.MultiDiscrete([27] * 2, ),
-            "enemy_modifiers": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
-            "enemy_status": spaces.MultiBinary(5),
-            "move_selection": spaces.MultiDiscrete([256] * 2),
-            "type_hint": spaces.MultiBinary(4),
+            "battle_type": spaces.Box(low=0, high=1, shape=(4,), dtype=np.uint8),
+            "enemies_left": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
+            "player_head_index": spaces.Box(low=0, high=6, shape=(1,), dtype=np.uint8),
+            "player_head_pokemon": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
+            "player_modifiers": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
+            "enemy_head": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
+            "enemy_level": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
+            "enemy_hp": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32),
+            "enemy_types": spaces.Box(low=0, high=26, shape=(2,), dtype=np.uint8),
+            "enemy_modifiers": spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32),
+            "enemy_status": spaces.Box(low=0, high=1, shape=(5,), dtype=np.uint8),
+            "move_selection": spaces.Box(low=0, high=255, shape=(2,), dtype=np.uint8),
+            "type_hint": spaces.Box(low=0, high=1, shape=(4,), dtype=np.float32),
         }
     )
 
@@ -227,7 +239,6 @@ class RedGymEnv(Env):
 
     def _get_observation(self):
         self.map.update_map_obs()
-        enemy_type_1, enemy_type_2 = self.game.battle.get_enemy_party_head_types()
 
         observation = {
             # Game View:
@@ -238,7 +249,7 @@ class RedGymEnv(Env):
             "coordinates": self.map.coordinates,
 
             # Game:
-            "game_state": self.player.obs_game_state(),
+            "game_state": self.player.obs_game_state(),  # TODO: Move to game class
 
             # Player:
             "player_pokemon":    self.player.obs_player_pokemon(),

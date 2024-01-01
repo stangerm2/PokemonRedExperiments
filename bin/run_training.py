@@ -35,7 +35,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size=1860, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size=1320, hidden_size=features_dim, batch_first=True)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
-    # env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
+    #env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
@@ -295,7 +295,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../' + "saved_runs/session_775fff0c/poke_14729216_steps.zip"
+    #file_name = '../' + "saved_runs/session_f0baf353/poke_142213120_steps.zip"
 
     model = None
     checkpoint_exists = exists(file_name)

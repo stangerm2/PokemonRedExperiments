@@ -10,7 +10,7 @@ class RedGymPlayer:
             print('**** RedGymPlayer ****')
         
         self.current_badges = 0
-        self.game_history = np.zeros((15,), dtype=np.uint8)
+        self.game_history = np.zeros((10,), dtype=np.uint8)
 
     def get_badge_reward(self):
         badges = self.env.game.player.get_badges()
