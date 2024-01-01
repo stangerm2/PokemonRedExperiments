@@ -52,6 +52,9 @@ class Game:
         GAME_MENU = 10
         BATTLE_TEXT = 11
         FOLLOWING_NPC = 12
+        NAME_POKEMON = 13
+        OVERWRITE_MOVE = 14
+        ABANDON_MOVE = 15
         GAME_STATE_UNKNOWN = 115
 
     
@@ -189,7 +192,7 @@ class Battle:
             return self.env.GameState.BATTLE_TEXT
 
         if state != RedRamMenuValues.UNKNOWN_MENU:
-            if self.env.menus.get_menu_item_state(cursor_location) != RedRamSubMenuValues.UNKNOWN_MENU:
+            if self.env.menus._get_menu_item_state(cursor_location) != RedRamSubMenuValues.UNKNOWN_MENU:
                 item_number = self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
                 state = TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
 
@@ -491,7 +494,7 @@ class Menus:
                 return self.env.GameState.TALKING
             
             # In a sub-box that requires fetching count of menu pos, such as mart items
-            sub_state = self.get_menu_item_state(cursor_location)
+            sub_state = self._get_menu_item_state(cursor_location)
             if sub_state != RedRamSubMenuValues.UNKNOWN_MENU:
                 return sub_state
 
@@ -530,7 +533,7 @@ class Menus:
         
         return RedRamSubMenuValues.UNKNOWN_MENU
 
-    def get_menu_item_state(self, cursor_location):
+    def _get_menu_item_state(self, cursor_location):
         if cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_1 or cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_2 or cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_N:
             item_number = self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
             if self.env.ram_interface.read_memory(ITEM_COUNT_SCREEN_PEAK) == 0x7E:  # 0x7E is the middle pokeball icon on screen, unique to the 3 sub menu pop out
