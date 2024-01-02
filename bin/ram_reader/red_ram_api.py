@@ -141,6 +141,59 @@ class Battle:
     def _loaded_pokemon_address(self):
         party_index = self.env.ram_interface.read_memory(PLAYER_LOADED_POKEMON)
         return party_index * PARTY_OFFSET
+    
+    def _get_battle_menu_overwrites(self, game_state):
+        # These are nasty's in the game where the reg's don't follow the same pattern as the other menu's, so we have to override them.
+        # All these overwrites are based off the face we KNOW we're in battle, thus what menu's are/aren't possible.
+        if game_state == RedRamMenuValues.PC_LOGOFF:
+            game_state = RedRamMenuValues.MENU_YES
+        elif game_state == RedRamMenuValues.MENU_SELECT_STATS:  # Corner-case, during battle the sub-menu's for switch/stats are reversed
+            game_state = RedRamMenuValues.BATTLE_SELECT_SWITCH
+        elif game_state == RedRamMenuValues.MENU_SELECT_SWITCH:
+            game_state = RedRamMenuValues.BATTLE_SELECT_STATS
+
+        if (game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO):
+            text_dst_pointer = self.env.ram_interface.read_memory(TEXT_DST_POINTER)
+            if text_dst_pointer == 0xF0 and game_state == RedRamMenuValues.MENU_YES:
+                return RedRamMenuValues.NAME_POKEMON_YES
+            elif text_dst_pointer == 0xF0 and game_state == RedRamMenuValues.MENU_NO:
+                return RedRamMenuValues.NAME_POKEMON_NO
+            elif text_dst_pointer == 0xED and game_state == RedRamMenuValues.MENU_YES:
+                return RedRamMenuValues.SWITCH_POKEMON_YES
+            elif text_dst_pointer == 0xED and game_state == RedRamMenuValues.MENU_NO:
+                return RedRamMenuValues.SWITCH_POKEMON_NO
+
+        if (game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO or
+            game_state == RedRamMenuValues.BATTLE_SELECT_SWITCH or game_state == RedRamMenuValues.BATTLE_SELECT_STATS):
+            return game_state
+        
+        return self.env.GameState.GAME_STATE_UNKNOWN
+    
+    def _get_battle_menu_state(self, battle_type):
+        cursor_location, state = self.env.menus.get_item_menu_context()
+        game_state = TEXT_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamMenuValues.UNKNOWN_MENU)
+
+        game_state = self._get_battle_menu_overwrites(game_state)
+        if game_state != self.env.GameState.GAME_STATE_UNKNOWN:
+            return game_state
+
+        # when text is on screen but menu reg's are clear, we can't be in a menu
+        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not battle_type:
+            return self.env.GameState.BATTLE_ANIMATION
+        elif game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO:
+            return game_state
+        elif self.env.ram_interface.read_memory(BATTLE_TEXT_PAUSE_FLAG) == 0x00:
+            return self.env.GameState.BATTLE_TEXT
+
+        if state != RedRamMenuValues.UNKNOWN_MENU:
+            if self.env.menus._get_menu_item_state(cursor_location) != RedRamSubMenuValues.UNKNOWN_MENU:
+                item_number = self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
+                state = TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
+
+            return state
+
+
+        return self.env.GameState.GAME_STATE_UNKNOWN
 
     def get_battle_state(self):
         battle_type = self.get_battle_type()
@@ -164,40 +217,8 @@ class Battle:
         else:
             self.new_turn = False
 
-        cursor_location, state = self.env.menus.get_item_menu_context()
-        game_state = TEXT_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamMenuValues.UNKNOWN_MENU)
-
-        # HACK: This is a nasty in the game where the reg's don't follow the same pattern as the other menu's,
-        # both seem to only be PC menu's which can't be accessed in battle but this could get nasty somewhere else in the game.
-        # This happens when in battle after betting enemy trainer pokemon and are asked if you'd like to switch your pokemon.
-        if game_state == RedRamMenuValues.PC_LOGOFF:
-            game_state = RedRamMenuValues.MENU_YES
-        elif game_state == RedRamMenuValues.MENU_SELECT_STATS:  # Corner-case, during battle the sub-menu's for switch/stats are reversed
-            game_state = RedRamMenuValues.BATTLE_SELECT_SWITCH
-        elif game_state == RedRamMenuValues.MENU_SELECT_SWITCH:
-            game_state = RedRamMenuValues.BATTLE_SELECT_STATS
-
-        if (game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO or
-            game_state == RedRamMenuValues.BATTLE_SELECT_SWITCH or game_state == RedRamMenuValues.BATTLE_SELECT_STATS):
-            return game_state
-
-        # when text is on screen but menu reg's are clear, we can't be in a menu
-        if cursor_location == RedRamMenuKeys.MENU_CLEAR or not battle_type:
-            return self.env.GameState.BATTLE_ANIMATION
-        elif game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO:
-            return game_state
-        elif self.env.ram_interface.read_memory(BATTLE_TEXT_PAUSE_FLAG) == 0x00:
-            return self.env.GameState.BATTLE_TEXT
-
-        if state != RedRamMenuValues.UNKNOWN_MENU:
-            if self.env.menus._get_menu_item_state(cursor_location) != RedRamSubMenuValues.UNKNOWN_MENU:
-                item_number = self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
-                state = TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
-
-            return state
-
-
-        return self.env.GameState.GAME_STATE_UNKNOWN
+        return self._get_battle_menu_state(battle_type)
+    
     
     def win_battle(self):
         # You can only win once per battle, so don't call w/o being ready to process a win otherwise you'll lose capturing it for the battle cycle
