@@ -28,15 +28,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.Flatten()
         )
 
-        # Fully connected layer for coordinates
-        self.coordinates_lstm = nn.LSTM(input_size=360, hidden_size=features_dim, batch_first=True)
-        self.coordinates_fc = nn.Sequential(
-            nn.Linear(features_dim, features_dim),  # Flattened size of coordinates, repeated 3 times
-            nn.ReLU()
-        )
-
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size=1980, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size=2340, hidden_size=features_dim, batch_first=True)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
@@ -90,7 +83,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(976, 256),
+            nn.Linear(912, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
@@ -109,17 +102,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Apply CNN to spatial inputs
         screen_features = self.cnn(combined_input).to(device)
 
-        # Process 'coordinates' and pass through fully connected layer
+        # Game Class
         coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_input, _ = self.coordinates_lstm(coordinates_input)
-        coordinates_features = self.coordinates_fc(coordinates_input).to(device)
-
-        # Game Embeddings
         action_input = observations["action"].int().view(batch_size, -1).to(device).float()
         game_state_input = observations["game_state"].int().view(batch_size, -1).to(device).float()
         game_input = torch.cat([
             action_input,
             game_state_input,
+            coordinates_input,
         ], dim=1)
 
         game_state_lstm_features, _ = self.game_state_lstm(game_input)
@@ -207,7 +197,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Battle Turn Class
         battle_type_input = observations["battle_type"].view(batch_size, -1)
         enemies_left_input = observations["enemies_left"].view(batch_size, -1)
-        move_selection_input = observations["move_selection"].view(batch_size, -1)
+        move_selection_input = observations["move_selection"].view(batch_size, -1)  # TODO: Players move w/ history to LTSM
 
         battle_turn_input = torch.cat([
             battle_type_input,
@@ -222,7 +212,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Final FC layer
         combined_input = torch.cat([
             screen_features,
-            coordinates_features,
+            #coordinates_features,
             game_state_lstm_features,
             battle_turn_features,
             #battle_features,
@@ -263,7 +253,7 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
         #env_config['debug'] = True
