@@ -4,6 +4,12 @@ from enum import IntEnum
 TEXT_ON_SCREEN = 0x8800
 TEXT_FONT_ON_LOADED = 0xCFC4
 TEXT_DST_POINTER = 0xCC3A
+TEXT_BOX_ID = 0xD125
+
+# No idea what this is but it took 3 days but it seems to uniquely identify pokemon menu in battle,
+# which allows other values to ID battle text, a nearly impossible task (days and days to figure this out,
+# fix me if you can find a better value like 0xCF34 but it doesn't seem to work in pyboy??)
+UNKNOWN_D730 = 0xD730  
 
 # Core menu navigation identification
 TEXT_MENU_CURSOR_LOCATION = (0xCC30, 0xCC31)

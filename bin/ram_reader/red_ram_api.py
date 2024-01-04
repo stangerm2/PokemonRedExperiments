@@ -176,13 +176,15 @@ class Battle:
         game_state = self._get_battle_menu_overwrites(game_state)
         if game_state != self.env.GameState.GAME_STATE_UNKNOWN:
             return game_state
-
-        # when text is on screen but menu reg's are clear, we can't be in a menu
+    
         if cursor_location == RedRamMenuKeys.MENU_CLEAR or not battle_type:
             return self.env.GameState.BATTLE_ANIMATION
-        elif game_state == RedRamMenuValues.MENU_YES or game_state == RedRamMenuValues.MENU_NO:
-            return game_state
-        elif self.env.ram_interface.read_memory(BATTLE_TEXT_PAUSE_FLAG) == 0x00:
+        
+        # Very tricky to figure this one out, there is no clear ID for battle text but we can infer it from a combo of other reg's. Battle text pause get's it 50% of the time
+        # but there is a delay sometimes which give false positive on ID'ing menu's. Text box id work's the rest of the time but it shares a common value with pokemon menu so
+        # it alone also can't be used but the UNKNOWN_D730 reg in battle is always 0x40 when in the pokemon menu, letting us rule out pokemon menu in battle.
+        if ((self.env.ram_interface.read_memory(TEXT_BOX_ID) == 0x01 and self.env.ram_interface.read_memory(UNKNOWN_D730) != 0x40) or
+             self.env.ram_interface.read_memory(BATTLE_TEXT_PAUSE_FLAG) == 0x00):
             return self.env.GameState.BATTLE_TEXT
 
         if state != RedRamMenuValues.UNKNOWN_MENU:
@@ -191,7 +193,6 @@ class Battle:
                 state = TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
 
             return state
-
 
         return self.env.GameState.GAME_STATE_UNKNOWN
 
