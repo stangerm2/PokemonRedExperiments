@@ -28,8 +28,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.Flatten()
         )
 
+        # Fully connected layer for coordinates
+        self.coordinates_fc = nn.Sequential(
+            nn.Linear(3 * 8, features_dim),  # Flattened size of coordinates, repeated 3 times
+            nn.ReLU()
+        )
+
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size=2340, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size=1584, hidden_size=features_dim, batch_first=True)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
@@ -81,9 +87,14 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
         )
 
+        self.progress_fc = nn.Sequential(
+            nn.Linear(24, features_dim),
+            nn.ReLU(),
+        )
+
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(912, 256),
+            nn.Linear(1000, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
@@ -104,12 +115,13 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Game Class
         coordinates_input = observations["coordinates"].view(batch_size, -1)
+        coordinates_features = self.coordinates_fc(coordinates_input).to(device)
+
         action_input = observations["action"].int().view(batch_size, -1).to(device).float()
         game_state_input = observations["game_state"].int().view(batch_size, -1).to(device).float()
         game_input = torch.cat([
             action_input,
             game_state_input,
-            coordinates_input,
         ], dim=1)
 
         game_state_lstm_features, _ = self.game_state_lstm(game_input)
@@ -209,13 +221,23 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         battle_turn_features = self.battle_turn_fc(battle_turn_input).to(device)
 
 
+        # Progress Class
+        badges_input = observations["badges"].view(batch_size, -1)
+        pokecenters_input = observations["pokecenters"].view(batch_size, -1)
+        progress_features = self.progress_fc(torch.cat([
+            badges_input,
+            pokecenters_input,
+        ], dim=1)).to(device)
+
+
         # Final FC layer
         combined_input = torch.cat([
             screen_features,
-            #coordinates_features,
+            coordinates_features,
             game_state_lstm_features,
             battle_turn_features,
-            #battle_features,
+            badges_input,
+            pokecenters_input,
         ], dim=1)
 
 
@@ -256,7 +278,7 @@ if __name__ == '__main__':
     num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
-        #env_config['debug'] = True
+        env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 
@@ -287,7 +309,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../' + "saved_runs/session_f0baf353/poke_142213120_steps.zip"
+    # file_name = '../' + "saved_runs/session_c62778b9/poke_125452288_steps.zip"
 
     model = None
     checkpoint_exists = exists(file_name)

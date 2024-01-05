@@ -52,10 +52,10 @@ class RedGymBattle:
 
     LEVEL_DELTA_DECAY = {
         0 : 0.95,
-        1 : 0.85,
-        2 : 0.6,
-        3 : 0.40,
-        4 : 0.15,
+        1 : 0.8,
+        2 : 0.575,
+        3 : 0.35,
+        4 : 0.1,
     }
 
 
@@ -255,10 +255,10 @@ class RedGymBattle:
 
         return 0
     
-    def _menu_selection_reward(self):
+    def _menu_selection_punish(self):
         selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
         if selection_count == 1:
-            return 0.05  # New menu discovered for this turn, keep low or AI will farm menu hover w/ wild pokemon vs. explore
+            return 0  # Don't reward new menu discovery or AI will farm menu hovering
         
         # TODO: Run in trainer battle not working, need to fix, no neg
         return max(-0.0001 * pow(selection_count, 2), -0.11)
@@ -318,7 +318,7 @@ class RedGymBattle:
 
         turn_stats = self._get_battle_turn_stats()
 
-        selection_reward = self._menu_selection_reward()
+        selection_reward = self._menu_selection_punish()
         #(f'Menu Selection Reward: {selection_reward}')
         #if reward < 0:
         #    return reward  # No decay for bad menu selections

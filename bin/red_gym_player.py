@@ -1,6 +1,6 @@
 import numpy as np
 from red_env_constants import *
-from ram_reader.red_memory_map import *
+#from ram_reader.red_memory_map import *
 
 
 class RedGymPlayer:
@@ -10,7 +10,6 @@ class RedGymPlayer:
             print('**** RedGymPlayer ****')
         
         self.current_badges = 0
-        self.game_history = np.zeros((OBSERVATION_MEMORY_SIZE,), dtype=np.uint8)
 
     def get_badge_reward(self):
         badges = self.env.game.player.get_badges()
@@ -57,10 +56,10 @@ class RedGymPlayer:
 
         return binary_status
 
-    def obs_player_badges(self):
-        return np.array(self.env.game.player.get_badges(), dtype=np.uint8)
+    def obs_total_badges(self):
+        badges = self.env.game.player.get_badges()
+        badges_array = np.array(badges, dtype=np.uint8)
+        binary_badges = np.unpackbits(badges_array)[0:8]
+        return binary_badges.astype(np.uint8)
     
-    def obs_game_state(self):
-        self.game_history = np.roll(self.game_history, 1)
-        self.game_history[0] = self.env.game.get_game_state()
-        return self.game_history
+

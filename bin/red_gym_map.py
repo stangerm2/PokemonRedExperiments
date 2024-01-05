@@ -21,12 +21,11 @@ class RedGymMap:
         self.location_history = deque()
         self.steps_discovered = 0
         self.collisions = 0
-        self.pokecenter_history = {0 : True}
 
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked, 7 bits as all val's are < 128
+        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked, 7 bits as all val's are < 128
 
         self.tester = RedGymObsTester(self)
 
@@ -61,13 +60,13 @@ class RedGymMap:
         
             # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
             for i, bit in enumerate(x_pos_binary):
-                self.coordinates[0][0][i] = bit
+                self.coordinates[0][i] = bit
 
             for i, bit in enumerate(y_pos_binary):
-                self.coordinates[0][1][i] = bit
+                self.coordinates[1][i] = bit
 
             for i, bit in enumerate(m_pos_binary):
-                self.coordinates[0][2][i] = bit
+                self.coordinates[2][i] = bit
         except Exception as e:
             print(f"An error occurred: {e}")
             self.env.support.save_and_print_info(False, True, True)
@@ -104,7 +103,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32)
+        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)
 
     def save_post_action_pos(self):
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
@@ -166,18 +165,6 @@ class RedGymMap:
         if len(self.location_history) > 10:
             self.location_history.popleft()
         self.location_history.append(debug_str)
-
-    def get_pokecenter_reward(self):
-        audio_id = self.env.game.world.get_playing_audio_track()
-        if audio_id != 0xBD:
-            return 0  # we aren't in a mart or pokecenter
-
-        pokecenter_id = self.env.game.world.get_pokecenter_id()
-        if pokecenter_id in self.pokecenter_history:
-            return 0
-                
-        self.pokecenter_history[pokecenter_id] = True
-        return 1000
 
     def get_exploration_reward(self):
         x_pos, y_pos, map_n = self.env.game.map.get_current_location()

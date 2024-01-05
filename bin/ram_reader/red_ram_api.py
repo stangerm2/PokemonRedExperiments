@@ -736,7 +736,7 @@ class Player:
         return self.env.GameState.GAME_STATE_UNKNOWN
     
     def get_badges(self):
-        return [self.env.ram_interface.read_memory(OBTAINED_BADGES)]
+        return self.env.ram_interface.read_memory(OBTAINED_BADGES)
     
     def get_pokedex_seen(self):
         return self._pokedex_bit_count(POKEDEX_SEEN)

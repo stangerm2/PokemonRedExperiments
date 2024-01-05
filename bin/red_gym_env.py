@@ -10,6 +10,7 @@ from red_gym_screen import RedGymScreen
 from red_gym_player import RedGymPlayer
 from red_gym_map import RedGymMap
 from red_gym_battle import RedGymBattle
+from red_gym_world import RedGymWorld
 from red_gym_map import *
 from red_env_constants import *
 
@@ -56,7 +57,7 @@ def initialize_observation_space(extra_buttons):
             "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
             "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(OBSERVATION_MEMORY_SIZE, 3, BITS_PER_BYTE), dtype=np.float32),
+            "coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.float32),
 
             # Game:
             "action": spaces.MultiDiscrete([7] * OBSERVATION_MEMORY_SIZE),
@@ -73,8 +74,6 @@ def initialize_observation_space(extra_buttons):
             "player_stats": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
             "player_status": spaces.MultiBinary(6 * 5),
 
-            #"badges": spaces.Box(low=0, high=255, shape=(1, ), dtype=np.uint8),
-
             # Battle
             "battle_type": spaces.MultiBinary(4),
             "enemies_left": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
@@ -89,6 +88,10 @@ def initialize_observation_space(extra_buttons):
             "enemy_status": spaces.MultiBinary(5),
             "move_selection": spaces.MultiDiscrete([256] * 2),
             "type_hint": spaces.MultiBinary(4),
+
+            # Progress
+            "badges":  spaces.MultiBinary(8),
+            "pokecenters": spaces.MultiBinary(16),
         }
     )
 
@@ -164,6 +167,7 @@ class RedGymEnv(Env):
         self.map = RedGymMap(self)
         self.player = RedGymPlayer(self)
         self.battle = RedGymBattle(self)
+        self.world = RedGymWorld(self)
         self.game = Game(self.gameboy.pyboy)
 
         self.gameboy.reload_game()
@@ -212,17 +216,17 @@ class RedGymEnv(Env):
             # 'last_action': action,
             'discovered': self.map.steps_discovered,
             'collisions': self.map.collisions,
-            #'badges' : badges[0],
             'wild_mon_killed': self.battle.wild_pokemon_killed,
             'trainers_killed': self.battle.trainer_pokemon_killed,
             #'trainer_mon_killed': self.battle.trainer_pokemon_killed,
             #'gym_mon_killed': self.battle.gym_pokemon_killed,
-            #'died': self.battle.died,
+            'died': self.battle.died,
             'battle_action_avg': self.battle.get_avg_battle_action_avg(),
             'battle_turn_avg': self.battle.get_avg_battle_turn_avg(),
             'k/d': self.battle.get_kill_to_death(),
             'dmg_ratio': self.battle.get_damage_done_vs_taken(),
-            'heal': len(self.map.pokecenter_history) - 1,
+            'badges': self.player.current_badges,
+            'pokecenters': self.world.pokecenter_history.bit_count()
         })
 
     def _get_observation(self):
@@ -237,7 +241,7 @@ class RedGymEnv(Env):
 
             # Game:
             "action":      self.gameboy.action_history,
-            "game_state":  self.player.obs_game_state(),
+            "game_state":  self.world.obs_game_state(),
 
             # Player:
             "player_pokemon":    self.player.obs_player_pokemon(),
@@ -249,7 +253,6 @@ class RedGymEnv(Env):
             "player_pp":         self.player.obs_player_pp(),
             "player_stats":      self.player.obs_player_stats(),
             "player_status":     self.player.obs_player_status(),
-            #"badges": self.game.player.get_badges(),
 
             # Battle
             "battle_type":         self.battle.obs_battle_type(),
@@ -268,6 +271,10 @@ class RedGymEnv(Env):
 
             "move_selection":      self.battle.obs_battle_moves_selected(),
             "type_hint":           self.battle.obs_type_hint(),
+
+            # Progress
+            "badges":              self.player.obs_total_badges(),
+            "pokecenters":         self.world.obs_pokecenters_visited(),
 
         }
 
@@ -300,8 +307,8 @@ class RedGymEnv(Env):
             'explore': self.map.get_exploration_reward(),
             'battle': self.battle.get_battle_win_reward(),
             'battle_turn': self.battle.get_battle_action_reward(),
-            #'badges': self.player.get_badge_reward(),
-            'pokecenter' : self.map.get_pokecenter_reward(),
+            'badges': self.player.get_badge_reward(),
+            'pokecenter' : self.world.get_pokecenter_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward
