@@ -261,7 +261,7 @@ class RedGymBattle:
             return 0  # Don't reward new menu discovery or AI will farm menu hovering
         
         # TODO: Run in trainer battle not working, need to fix, no neg
-        return max(-0.0001 * pow(selection_count, 2), -0.11)
+        return max(-0.001 * pow(selection_count, 2), -0.15)
             
     def _get_battle_action_reward(self):
         if not self.env.gameboy.a_button_selected():
