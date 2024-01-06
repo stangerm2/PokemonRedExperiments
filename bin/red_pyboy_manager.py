@@ -149,7 +149,7 @@ class PyBoyManager:
 
         # TODO: This was a bug to start with using action WindowsEvent Enum over input const int. The transformation of 0-6 action to 1-7 in
         # a jumbled order though causes a 2x exploration increase. It'd be good to figure out another way to introduce the noise, but for now leaving this as is.
-        self._update_action_obs(input)
+        self._update_action_obs(self.action)
 
         if not self.env.game.allow_menu_selection(self.action):
             self.move_accepted = False
