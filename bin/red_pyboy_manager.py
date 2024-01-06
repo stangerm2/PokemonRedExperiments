@@ -90,7 +90,6 @@ class PyBoyManager:
     def _update_action_obs(self, input):
         self.action_history = np.roll(self.action_history, 1)
         self.action_history[0] = input
-        return self.action_history
 
     def a_button_selected(self):
         if self.action == WindowEvent.PRESS_BUTTON_A:
@@ -150,15 +149,15 @@ class PyBoyManager:
 
         # TODO: This was a bug to start with using action WindowsEvent Enum over input const int. The transformation of 0-6 action to 1-7 in
         # a jumbled order though causes a 2x exploration increase. It'd be good to figure out another way to introduce the noise, but for now leaving this as is.
-        self._update_action_obs(self.action)
+        self._update_action_obs(input)
 
         if not self.env.game.allow_menu_selection(self.action):
             self.move_accepted = False
             return
 
-        #if self.env.debug:
-        #    print(f'\n\naction: {WindowEvent(action).__str__()}')
-        #    print(self.action_history)
+        if self.env.debug:
+            print(f'\n\naction: {WindowEvent(self.action).__str__()}')
+            print(self.action_history)
 
         # Pass counts as running a cmd for terms of assigning reward
         if termination_action == WindowEvent.PASS:

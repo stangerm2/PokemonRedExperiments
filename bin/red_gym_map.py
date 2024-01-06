@@ -25,8 +25,7 @@ class RedGymMap:
         self.screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32)
         self.visited = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.walkable = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked, 7 bits as all val's are < 128
-
+        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked
         self.tester = RedGymObsTester(self)
 
 
@@ -34,7 +33,6 @@ class RedGymMap:
         # The screen tiles don't have sprites/npc's with them
         self.screen[0:7, 0:7] = self.env.game.map.get_centered_7x7_tiles()
         self.walkable[0:7, 0:7] = self.env.game.map.get_centered_step_count_7x7_screen()
-
 
     def _update_visited_obs(self, x_pos_new, y_pos_new, n_map_new):
         callback = lambda x, y, pos: self._update_matrix_visited(x, y, pos)

@@ -51,11 +51,11 @@ class RedGymBattle:
 
 
     LEVEL_DELTA_DECAY = {
-        0 : 0.90,
-        1 : 0.75,
-        2 : 0.5,
-        3 : 0.3,
-        4 : 0.1,
+        0 : 0.95,
+        1 : 0.85,
+        2 : 0.6,
+        3 : 0.40,
+        4 : 0.15,
     }
 
 
@@ -162,10 +162,8 @@ class RedGymBattle:
         self.battle_memory.pre_type_hint = turn_stats['type_hint']
 
     def _update_menu_selected(self):
-        #if not self.env.gameboy.a_button_selected() or self.env.game.game_state == self.env.game.GameState.BATTLE_TEXT:
-        #    return
-        
-        if self.env.game.game_state == self.env.game.GameState.BATTLE_ANIMATION:
+        if ((self.env.gameboy.a_button_selected() and self.env.game.game_state == self.env.game.GameState.BATTLE_TEXT) or
+             self.env.game.game_state == self.env.game.GameState.BATTLE_ANIMATION):
             return
         
         selection_count = self.battle_memory.battle_turn.menus_visited.get(self.env.game.game_state.value, 0)
