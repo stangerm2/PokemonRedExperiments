@@ -15,6 +15,8 @@ from red_gym_map import *
 from red_env_constants import *
 
 from ram_reader.red_ram_api import *
+
+
 '''            # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
@@ -54,9 +56,8 @@ def initialize_observation_space(extra_buttons):
     return spaces.Dict(
         {
             # Game View:
-            "screen": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.float32),
-            "visited": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
-            "walkable": spaces.Box(low=0, high=1, shape=(7, 7), dtype=np.uint8),
+            "screen": spaces.Box(low=0, high=1, shape=(11, 7, 7,), dtype=np.float32),
+            "visited": spaces.Box(low=0, high=1, shape=(1, 7, 7), dtype=np.uint8),
             "coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.float32),
 
             # Game:
@@ -154,6 +155,7 @@ class RedGymEnv(Env):
         np.set_printoptions(linewidth=np.inf)
         # assert len(initialize_observation_space()) == len(self._get_observation())
 
+
     def reset(self, seed=0):
         self._reset_env_state()
 
@@ -193,6 +195,7 @@ class RedGymEnv(Env):
         self.support.save_and_print_info(step_limit_reached)
 
         self.step_count += 1
+
 
         return observation, self.total_reward * 0.001, False, step_limit_reached, {}
 
@@ -234,9 +237,8 @@ class RedGymEnv(Env):
 
         observation = {
             # Game View:
-            "screen":      self.map.screen,
+            "screen":      self.map.simple_screen_channels,
             "visited":     self.map.visited,
-            "walkable":    self.map.walkable,
             "coordinates": self.map.coordinates,
 
             # Game:

@@ -75,6 +75,7 @@ class PyBoyManager:
 
     def reload_game(self):
         self._load_save_file(self.env.init_state)
+        pass
 
     def _load_save_file(self, save_file):
         if self.pyboy and save_file:

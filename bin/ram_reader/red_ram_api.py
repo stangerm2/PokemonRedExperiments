@@ -438,10 +438,40 @@ class Map:
 
     def get_current_map(self):
         return self.env.ram_interface.read_memory(PLAYER_MAP)
-
+    
     def get_current_location(self):
         return self.env.ram_interface.read_memory(PLAYER_LOCATION_X), self.env.ram_interface.read_memory(PLAYER_LOCATION_Y), self.get_current_map()
     
+    def get_collision_pointer(self):
+        return np.uint16((self.env.ram_interface.read_memory(TILE_COLLISION_PTR_1) << 8) + self.env.ram_interface.read_memory(TILE_COLLISION_PTR_2))
+    
+    def get_tileset_index(self):
+        return self.env.ram_interface.read_memory(TILESET_INDEX)
+
+    def get_collision_tiles(self):
+        collision_ptr = self.get_collision_pointer()
+        collection_tiles = set()
+        while True:
+            collision = self.env.ram_interface.read_memory(collision_ptr)
+            if collision == 0xFF:
+                break
+
+            collection_tiles.add(collision)
+            collision_ptr += 1
+
+        return collection_tiles
+    
+    def get_screen_tilemaps(self):
+        bsm = self.env.ram_interface.pyboy.botsupport_manager()
+        ((scx, scy), (wx, wy)) = bsm.screen().tilemap_position()
+        tilemap = np.array(bsm.tilemap_background()[:, :])
+        screen_tiles = (np.roll(np.roll(tilemap, -scy // 8, axis=0), -scx // 8, axis=1)[:18, :20] - 0x100)
+
+        top_left_tiles = screen_tiles[:screen_tiles.shape[0]: 2,::2]
+        bottom_left_tiles = screen_tiles[1: 1 + screen_tiles.shape[0]: 2,::2]
+
+        return top_left_tiles, bottom_left_tiles
+
     def get_centered_7x7_tiles(self):
         # Starting addresses for each row
         starting_addresses = [TILE_COL_1_ROW_1, TILE_COL_1_ROW_2, TILE_COL_1_ROW_3, TILE_COL_1_ROW_4,
@@ -471,7 +501,7 @@ class Map:
         return screen
     
 
-    def get_npc_location_dict(self, skip_moving_npc=True):
+    def get_npc_location_dict(self, skip_moving_npc=False):
         # Moderate testing show's NPC's are never on screen during map transitions
         sprites = {}
         for i, sprite_addr in enumerate(SPRITE_STARTING_ADDRESSES):
@@ -481,9 +511,8 @@ class Map:
                 continue
 
             # Moving sprites can cause complexity, use at discretion
-            #can_move = self.env.ram_interface.read_memory(sprite_addr + 0x0106)
-            #if skip_moving_npc and can_move != 0xFF:
-            #    continue
+            if skip_moving_npc and self.env.ram_interface.read_memory(sprite_addr + 0x0106) != 0xFF:
+                continue
             
             picture_id = self.env.ram_interface.read_memory(sprite_addr)
             x_pos = self.env.ram_interface.read_memory(sprite_addr + 0x0105) - 4  # topmost 2x2 tile has value 4), thus the offset
@@ -493,6 +522,18 @@ class Map:
             sprites[(x_pos, y_pos, self.get_current_map())] = picture_id
             
         return sprites
+    
+    def get_warp_tile_count(self):
+        return self.env.ram_interface.read_memory(WARP_TILE_COUNT)
+    
+    def get_warp_tile_positions(self):
+        warp_tile_count = self.get_warp_tile_count()
+        warp_tile_positions = set()
+        for i in range(warp_tile_count):
+            warp_tile_positions.add((self.env.ram_interface.read_memory(WARP_TILE_X_ENTRY + i * WARP_TILE_ENTRY_OFFSET),
+                                     self.env.ram_interface.read_memory(WARP_TILE_Y_ENTRY + i * WARP_TILE_ENTRY_OFFSET)))
+        
+        return warp_tile_positions
 
 
 class Menus:

@@ -23,7 +23,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Define CNN architecture for spatial inputs
 	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=12, out_channels=16, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.Flatten()
         )
@@ -106,12 +106,13 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         batch_size = observations["visited"].size(0)
         device = observations["screen"].device  # Assuming 'screen' is part of your observations
 
-        combined_input = torch.cat([observations["screen"].unsqueeze(1),
-                                    observations["visited"].unsqueeze(1),
-                                    observations["walkable"].unsqueeze(1)], dim=1)
+        screen_input = torch.cat([
+            observations["screen"],
+            observations["visited"],
+        ], dim=1)
 
         # Apply CNN to spatial inputs
-        screen_features = self.cnn(combined_input).to(device)
+        screen_features = self.cnn(screen_input).to(device)
 
         # Game Class
         coordinates_input = observations["coordinates"].view(batch_size, -1)
@@ -285,7 +286,7 @@ if __name__ == '__main__':
     print(env_config)
 
     env = SubprocVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
-    #env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
+   # env = DummyVecEnv([make_env(i, env_config, GLOBAL_SEED) for i in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length * 1, save_path=os.path.abspath(sess_path),
                                              name_prefix='poke')
