@@ -26,7 +26,7 @@ class RedGymMap:
         self.visited = np.zeros((1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen_channels = np.zeros((11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)  # x,y,map stacked
+        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.uint8)  # x,y,map stacked
         #self.tester = RedGymObsTester(self)
 
 
@@ -34,7 +34,7 @@ class RedGymMap:
         self.visited = np.zeros((1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen_channels = np.zeros((11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
-        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.float32)
+        self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.uint8)
 
 
     def _update_collision_lookup(self, collision_ptr):
@@ -75,8 +75,6 @@ class RedGymMap:
             x_pos_binary = format(x_pos_new, f'0{BITS_PER_BYTE}b')
             y_pos_binary = format(y_pos_new, f'0{BITS_PER_BYTE}b')
             m_pos_binary = format(n_map_new, f'0{BITS_PER_BYTE}b')
-
-            self.coordinates = np.roll(self.coordinates, 1, axis=0)
         
             # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
             for i, bit in enumerate(x_pos_binary):
@@ -87,6 +85,7 @@ class RedGymMap:
 
             for i, bit in enumerate(m_pos_binary):
                 self.coordinates[2][i] = bit
+
         except Exception as e:
             print(f"An error occurred: {e}")
             self.env.support.save_and_print_info(False, True, True)
@@ -161,9 +160,9 @@ class RedGymMap:
 
     def _walk_simple_screen(self, x, y, pos, collision_ptr, tileset_index, sprites, warps, bottom_left_tiles_7x7, top_left_tiles_7x7):
         if bottom_left_tiles_7x7[y][x] in self.collisions_lookup[collision_ptr]:
-            self.simple_screen[y][x] = 0  # Walkable
+            self.simple_screen[y][x] = 1  # Walkable
         else:
-            self.simple_screen[y][x] = 1  # Wall
+            self.simple_screen[y][x] = 0  # Wall
 
         if tileset_index == 0x00:
             self._update_tileset_openworld(bottom_left_tiles_7x7, x, y)
@@ -236,8 +235,8 @@ class RedGymMap:
         debug_str += f"New location: {new_x_pos, new_y_pos, new_map_n} \n"
         debug_str += f"\n"
         debug_str += f"{self.simple_screen}"
-        #debug_str += f"\n"
-        #debug_str += f"{self.visited}"
+        debug_str += f"\n"
+        debug_str += f"{self.visited}"
 
         if len(self.location_history) > 10:
             self.location_history.popleft()

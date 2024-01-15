@@ -20,10 +20,11 @@ from red_env_constants import *
 class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
-        # Define CNN architecture for spatial inputs
-	    # Note: Possible to do 2x convo(out 16, then 32) learns a little faster & explores a little better before 50M at the cost of size, both equal around 50M, 2x overfits after 50M
+
+
+        # Screen Class
         self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels=12, out_channels=16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=12, out_channels=6, kernel_size=5, stride=1, padding=2),
             nn.ReLU(),
             nn.Flatten()
         )
@@ -34,8 +35,10 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU()
         )
 
+
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size=1584, hidden_size=features_dim, batch_first=True)
+        self.game_state_lstm = nn.LSTM(input_size = 132 * OBSERVATION_MEMORY_SIZE, hidden_size=features_dim, batch_first=True)
+
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)
@@ -94,7 +97,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1000, 256),
+            nn.Linear(510, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
@@ -104,15 +107,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
     def forward(self, observations):
         # Explicitly use batch_size for reshaping, after n_steps there will be a big batch
         batch_size = observations["visited"].size(0)
-        device = observations["screen"].device  # Assuming 'screen' is part of your observations
+        device = observations["screen"].device
 
+
+        # Screen Class
         screen_input = torch.cat([
             observations["screen"],
             observations["visited"],
         ], dim=1)
 
-        # Apply CNN to spatial inputs
+        # Convert the screen to spatial representation
         screen_features = self.cnn(screen_input).to(device)
+
 
         # Game Class
         coordinates_input = observations["coordinates"].view(batch_size, -1)
@@ -127,8 +133,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         game_state_lstm_features, _ = self.game_state_lstm(game_input)
 
+
         # Move Class
-        #player_moves_input = self.player_moves_embedding(observations["player_moves"].to(torch.int)).view(batch_size, -1)
         player_moves_input = observations["player_moves"].view(batch_size, -1)
         player_pp = observations["player_pp"].view(batch_size, -1)
 
@@ -139,7 +145,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         ], dim=1)
 
         moves_features = self.move_fc(moves_input).to(device)
-        #moves_features = self.move_max_pool(moves_input.unsqueeze(1)).squeeze(1)  # TODO: Try with and without pooling
 
 
         # Pokemon Class
@@ -162,7 +167,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         ], dim=1)
         
         pokemon_features = self.pokemon_fc(pokemon_input).to(device)
-        #pokemon_features = self.player_max_pool(pokemon_input.unsqueeze(1)).squeeze(1)  # TODO: Try with and without pooling
 
 
         # Player Class

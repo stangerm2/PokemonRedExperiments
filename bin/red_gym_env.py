@@ -56,9 +56,9 @@ def initialize_observation_space(extra_buttons):
     return spaces.Dict(
         {
             # Game View:
-            "screen": spaces.Box(low=0, high=1, shape=(11, 7, 7,), dtype=np.float32),
-            "visited": spaces.Box(low=0, high=1, shape=(1, 7, 7), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.float32),
+            "screen": spaces.Box(low=0, high=1, shape=(11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32),
+            "visited": spaces.Box(low=0, high=1, shape=(1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8),
+            "coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.uint8),
 
             # Game:
             "action": spaces.MultiDiscrete([7] * OBSERVATION_MEMORY_SIZE),
@@ -196,8 +196,7 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-
-        return observation, self.total_reward * 0.001, False, step_limit_reached, {}
+        return observation, self.total_reward * 0.01, False, step_limit_reached, {}
 
 
     def _run_pre_action_steps(self):
