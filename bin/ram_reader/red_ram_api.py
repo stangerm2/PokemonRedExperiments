@@ -471,34 +471,6 @@ class Map:
         bottom_left_tiles = screen_tiles[1: 1 + screen_tiles.shape[0]: 2,::2]
 
         return top_left_tiles, bottom_left_tiles
-
-    def get_centered_7x7_tiles(self):
-        # Starting addresses for each row
-        starting_addresses = [TILE_COL_1_ROW_1, TILE_COL_1_ROW_2, TILE_COL_1_ROW_3, TILE_COL_1_ROW_4,
-                               TILE_COL_1_ROW_5, TILE_COL_1_ROW_6, TILE_COL_1_ROW_7]
-        screen_size = len(starting_addresses)
-        increment_per_column = 2
-
-        screen = np.zeros((screen_size, screen_size), dtype=np.uint8)
-        for row, start_addr in enumerate(starting_addresses):
-            for col in range(screen_size):
-                address = start_addr + col * increment_per_column
-                
-                screen[row][col] = self.env.ram_interface.read_memory(address)
-
-        return screen
-    
-    def get_centered_step_count_7x7_screen(self):
-        collision_ptr_1, collision_ptr_2 = self.env.ram_interface.read_memory(TILE_COLLISION_PTR_1), self.env.ram_interface.read_memory(TILE_COLLISION_PTR_2)
-        screen = self.get_centered_7x7_tiles()
-        for row in range(screen.shape[0]):
-            for col in range(screen.shape[1]):
-                if screen[row][col] in WALKABLE_TILES.get((collision_ptr_1, collision_ptr_2), []):
-                    screen[row][col] = 0
-                else:
-                    screen[row][col] = 1
-
-        return screen
     
 
     def get_npc_location_dict(self, skip_moving_npc=False):
