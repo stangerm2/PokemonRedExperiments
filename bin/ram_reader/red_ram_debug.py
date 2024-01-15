@@ -1,9 +1,8 @@
-import os
 from os.path import exists
-import sys
 from pyboy import PyBoy, WindowEvent
 
 from .red_ram_api import *
+
 
 
 def _pokemon_dict_pretty_str(lineup):
@@ -16,6 +15,21 @@ def _pokemon_dict_pretty_str(lineup):
                                 pokemons += f'{key}: {val}, '
                 pokemons += '\n'
         return pokemons
+
+
+def _simple_screen_example(game, screen_tiles):
+        collision_tiles = game.map.get_collision_tiles()
+
+        SCREEN_VIEW_SIZE = 7
+        bottom_left_tiles_7x7 = screen_tiles[1: 1 + SCREEN_VIEW_SIZE, 1: 1 + SCREEN_VIEW_SIZE]
+        simple_screen = np.ones((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
+        for y in range(SCREEN_VIEW_SIZE):
+            for x in range(SCREEN_VIEW_SIZE):
+                    if bottom_left_tiles_7x7[y][x] in collision_tiles:
+                            simple_screen[y][x] = 0
+
+        return simple_screen
+
 
 def get_player_str(game):
         pokemons = "Pokemon:\n" + _pokemon_dict_pretty_str(game.player.get_player_lineup_dict())
@@ -58,14 +72,15 @@ def get_battle_str(game):
         player_move, enemy_move = game.battle.get_battle_turn_moves()
         type_hint = game.battle.get_battle_type_hint()
 
-        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nhead_index: {player_head_index}\nplayer_mods: {player_modifiers} \nenemy_stats: {enemy_fighting} \ntype_hint: {type_hint}\player_move: {player_move}, enemy_move: {enemy_move}'
+        return f'\n\nin_battle: {in_battle}, battle_done: {battle_done}, battle_type: {battle_type}, enemys_left: {enemys_left}, win_battle: {win_battle}\nhead_index: {player_head_index}\nplayer_mods: {player_modifiers} \nenemy_stats: {enemy_fighting} \ntype_hint: {type_hint} player_move: {player_move}, enemy_move: {enemy_move}'
 
 def get_map_str(game):
         location = game.map.get_current_location()
-        tiles = game.map.get_centered_7x7_tiles()
+        _, bottom_left_tiles = game.map.get_screen_tilemaps()
         npc = game.map.get_npc_location_dict()
+        simple_screen = _simple_screen_example(game, bottom_left_tiles)
 
-        return f'\n\nlocation: {location}\ntiles:\n{tiles}\nnpc: {npc}'
+        return f'\n\nlocation: {location}\nscreen:\n{bottom_left_tiles}\n\nsimple_screen:\n{simple_screen}\n\nnpc: {npc}'
 
 def get_debug_str(game):
         game_state = f'{game.game_state.name}\n'
@@ -75,7 +90,7 @@ def get_debug_str(game):
         game_state += get_items_str(game)
         game_state += get_world_str(game)
         game_state += get_battle_str(game)
-        # game_state += get_map_str(game)
+        game_state += get_map_str(game)
 
         return game_state
 
