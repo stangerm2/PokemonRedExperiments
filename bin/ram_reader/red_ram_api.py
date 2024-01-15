@@ -397,10 +397,14 @@ class Items:
         self.env = env
 
     def _get_items_in_range(self, size, index, offset):
-        items = [None] * size
+        items = []
         for i in range(size):
             item_val = self.env.ram_interface.read_memory(index + i * offset)
-            items[i] = 0 if item_val == 0xFF else item_val  # Modern parsing, we don't need termination byte so strip it out
+            if item_val == 0xFF:
+                break
+
+            items.append(item_val)
+            
         return items
     
     def get_bag_item_count(self):

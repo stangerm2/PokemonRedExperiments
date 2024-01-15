@@ -1,6 +1,6 @@
 import numpy as np
 from red_env_constants import *
-#from ram_reader.red_memory_map import *
+from ram_reader.red_memory_items import *
 
 
 class RedGymPlayer:
@@ -10,6 +10,52 @@ class RedGymPlayer:
             print('**** RedGymPlayer ****')
         
         self.current_badges = 0
+        self.bag_items = {}
+        self.bank_items = {}
+        self.money = 0
+
+    def _lookup_player_items(self, item_ids, item_counts):
+        items = {}
+        for i in range(len(item_ids)):
+            items[item_ids[i]] = item_counts[i]
+
+        return items
+    
+    def _get_player_money(self):
+        return self.env.game.player.get_player_money()
+    
+
+    def get_item_reward(self):
+        bag_item_ids = self.env.game.items.get_bag_item_ids()
+        bag_item_counts = self.env.game.items.get_bag_item_quantities()
+        pc_item_counts = self.env.game.items.get_pc_item_quantities()
+
+        # Prevent reward by shuffling items around in bank & bag
+        cur_total_items = sum(bag_item_counts) + sum(pc_item_counts)
+        prev_total_items = sum(self.bag_items.values()) + sum(self.bank_items.values())
+        if cur_total_items == prev_total_items:
+            return 0
+
+        # Reward for gaining items, ignore using/selling items here
+        item_norm, item_delta, item_key = 0, 0, 0
+        for i in range(len(bag_item_ids)):
+            item_key = bag_item_ids[i]
+            
+            item_delta = np.int32(bag_item_counts[i]) - np.int32(self.bag_items.get(item_key, 0))
+            item_norm = abs((item_delta * ITEM_COSTS.get(item_key, 0)) / 100)
+
+            if item_norm != 0:
+                break
+
+        # Don't reward selling items
+        cur_money = self._get_player_money()
+        money_delta = cur_money - self.money
+        if money_delta > 0:
+            return 0
+            
+        # item_norm could be pos bought item or neg sold item but both are good rewards, using should always win over buy/sell loops b/c selling halves money value
+        return 10 * item_norm
+    
 
     def get_badge_reward(self):
         badges = self.env.game.player.get_badges()
@@ -19,6 +65,10 @@ class RedGymPlayer:
             
         return 0
     
+    def save_pre_action_player(self):
+        self.bag_items = self._lookup_player_items(self.env.game.items.get_bag_item_ids(), self.env.game.items.get_bag_item_quantities())
+        self.bank_items = self._lookup_player_items(self.env.game.items.get_pc_item_ids(), self.env.game.items.get_pc_item_quantities())
+        self.money = self._get_player_money()
 
     def obs_player_pokemon(self):
         return np.array(self.env.game.player.get_player_lineup_pokemon(), dtype=np.uint8)
@@ -62,4 +112,10 @@ class RedGymPlayer:
         binary_badges = np.unpackbits(badges_array)[0:8]
         return binary_badges.astype(np.uint8)
     
-
+    def obs_bag_ids(self):
+        bag_item_ids = self.env.game.items.get_bag_item_ids()
+        padded_ids = np.pad(bag_item_ids, (0, 20 - len(bag_item_ids)), constant_values=0)
+        return np.array(padded_ids, dtype=np.uint8)
+    
+    def obs_bag_quantities(self):
+        return self.env.support.normalize_np_array(self.env.game.items.get_bag_item_quantities())

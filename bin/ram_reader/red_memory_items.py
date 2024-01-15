@@ -1,4 +1,7 @@
 # Pokemart items
+from enum import IntEnum
+
+
 POKEMART_AVAIL_SIZE = 10
 POKEMART_TOTAL_ITEMS = 0xCF7B # number of items the pokemart selling, stale until interaction
 POKEMART_ITEMS = 0xCF7C
@@ -145,6 +148,66 @@ BOX_POKEMON_20_HP = (0xDD0A, 0xDD0B)
 BOX_POKEMON_20_LEVEL = 0xDD0C
 
 
+class ITEMS_HEX(IntEnum):
+    Calcium = 0x27
+    Carbos = 0x26
+    Dire_Hit = 0x3A
+    Elixir = 0x52
+    Escape_Rope = 0x1D
+    Ether = 0x50
+    Fresh_Water = 0x3C
+    Full_Heal = 0x34
+    Full_Restore = 0x10
+    Guard_Spec = 0x37
+    HP_Up = 0x23
+    Hyper_Potion = 0x12
+    Ice_Heal = 0x0D
+    Iron = 0x25
+    Lemonade = 0x3E
+    Max_Elixir = 0x53
+    Max_Ether = 0x51
+    Max_Potion = 0x11
+    Max_Repel = 0x39
+    Max_Revive = 0x36
+    Nugget = 0x31
+    Parlyz_Heal = 0x0F
+    Poke_Doll = 0x33
+    Potion = 0x14
+    PP_Up = 0x4F
+    Protein = 0x24
+    Rare_Candy = 0x28
+    Repel = 0x1E
+    Revive = 0x35
+    Soda_Pop = 0x3D
+    Super_Potion = 0x13
+    Super_Repel = 0x38
+    X_Accuracy = 0x2E
+    X_Attack = 0x41
+    X_Defend = 0x42
+    X_Special = 0x44
+    X_Speed = 0x43
+    Bicycle = 0x06
+    Card_Key = 0x30
+    Coin = 0x3B
+    Coin_Case = 0x45
+    Dome_Fossil = 0x29
+    Exp_All = 0x4B
+    Gold_Teeth = 0x40
+    Good_Rod = 0x4D
+    Helix_Fossil = 0x2A
+    Old_Amber = 0x1F
+    Old_Rod = 0x4C
+    Town_Map = 0x05
+    Moon_Stone = 0x0A
+    Fire_Stone = 0x20
+    ThunderStone = 0x21
+    Water_Stone = 0x22
+    Leaf_Stone = 0x2F
+    Pokeball = 0x04
+    Great_Ball = 0x03
+    Ultra_Ball = 0x02
+
+
 ITEM_LOOKUP = {
     0xC4: "HM01 Cut",
     0xC5: "HM02 Fly",
@@ -263,11 +326,87 @@ ITEM_LOOKUP = {
     0x2B: "Secret Key",
     0x48: "Silph Scope",
     0x4E: "Super Rod",
-    0x07: "Surf",
     0x05: "Town Map",
     0x0A: "Moon Stone",
     0x20: "Fire Stone",
     0x21: "ThunderStone",
     0x22: "Water Stone",
-    0x2F: "Leaf Stone"
+    0x2F: "Leaf Stone",
+    0x04: "Pokeball",
+    0x03: "Great Ball",
+    0x02: "Ultra Ball",
+    0x01: "Master Ball",
 }
+
+
+ITEM_COSTS = {
+
+    0xC9: 3000,
+    0xCA: 2000,
+    0xCD: 3000,
+    0xCF: 2000,
+    0xD1: 3000,
+    0xD9: 3000,
+    0xE8: 1000,
+    0xE9: 1000,
+    0xED: 2000,
+    
+    0x0B: 100,
+    0x0E: 200,
+    0x0C: 250,
+    0x27: 9800,
+    0x26: 9800,
+    0x3A: 650,
+    0x1D: 550,
+    0x20: 2100,
+    0x3C: 200,
+    0x34: 600,
+    0x10: 3000,
+    0x37: 700,
+    0x23: 9800,
+    0x12: 1200,
+    0x0D: 250,
+    0x25: 9800,
+    0x3E: 350,
+    0x11: 2500,
+    0x39: 700,
+    0x36: 1500,
+    0x31: 10000,
+    0x0F: 200,
+    0x33: 1000,
+    0x14: 300,
+    0x24: 9800,
+    0x28: 4800,
+    0x1E: 350,
+    0x35: 1500,
+    0x3D: 300,
+    0x13: 700,
+    0x38: 500,
+    0x2E: 9500,
+    0x41: 500,
+    0x42: 550,
+    0x44: 3500,
+    0x43: 3500,
+    0x06: 1000,
+    0x2D: 1000,
+    0x30: 200,
+    0x3B: 10,
+    0x45: 1000,
+    0x29: 10000,
+    0x4B: 9800,
+    0x40: 9800,
+    0x4D: 9800,
+    0x47: 1000,
+    0x4A: 1000,
+    0x4C: 1000,
+    0x4E: 10000,
+    0x0A: 2100,
+    0x20: 2100,
+    0x21: 2100,
+    0x22: 2100,
+    0x2F: 2100,
+    0x04: 200,
+    0x03: 600,
+    0x02: 1200,
+}
+

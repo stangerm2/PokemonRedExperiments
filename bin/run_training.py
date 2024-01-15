@@ -95,9 +95,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
         )
 
+        # Items Class
+        self.items_fc = nn.Sequential(
+            nn.Linear(5140, features_dim),
+            nn.ReLU(),
+        )
+
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(510, 256),
+            nn.Linear(574, 256),
             nn.ReLU(),
             nn.Linear(256, features_dim),
             nn.ReLU()
@@ -235,6 +241,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         ], dim=1)).to(device)
 
 
+        # Items Class
+        bag_ids_input = observations["bag_ids"].view(batch_size, -1)
+        bag_quantities_input = observations["bag_quantities"].view(batch_size, -1)
+        item_features = self.items_fc(torch.cat([
+            bag_ids_input,
+            bag_quantities_input,
+        ], dim=1)).to(device)
+
+
         # Final FC layer
         combined_input = torch.cat([
             screen_features,
@@ -243,6 +258,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             battle_turn_features,
             badges_input,
             pokecenters_input,
+            item_features,
         ], dim=1)
 
 
@@ -267,7 +283,7 @@ def make_env(thread_id, env_conf, seed=0):
 if __name__ == '__main__':
 
     use_wandb_logging = True
-    ep_length = 2048 * 1
+    ep_length = 2048 * 10
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'../saved_runs/session_{sess_id}')
 

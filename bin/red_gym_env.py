@@ -93,6 +93,10 @@ def initialize_observation_space(extra_buttons):
             # Progress
             "badges":  spaces.MultiBinary(8),
             "pokecenters": spaces.MultiBinary(16),
+
+            # Items
+            "bag_ids": spaces.MultiDiscrete([256] * BAG_SIZE),
+            "bag_quantities": spaces.Box(low=0, high=1, shape=(BAG_SIZE,), dtype=np.float32),
         }
     )
 
@@ -200,6 +204,7 @@ class RedGymEnv(Env):
 
 
     def _run_pre_action_steps(self):
+        self.player.save_pre_action_player()
         self.map.save_pre_action_pos()
         self.battle.save_pre_action_battle()
 
@@ -277,6 +282,10 @@ class RedGymEnv(Env):
             "badges":              self.player.obs_total_badges(),
             "pokecenters":         self.world.obs_pokecenters_visited(),
 
+            # Items
+            "bag_ids":             self.player.obs_bag_ids(),
+            "bag_quantities":      self.player.obs_bag_quantities(),
+
         }
 
         #for key, val in observation.items():
@@ -310,6 +319,7 @@ class RedGymEnv(Env):
             'battle_turn': self.battle.get_battle_action_reward(),
             'badges': self.player.get_badge_reward(),
             'pokecenter' : self.world.get_pokecenter_reward(),
+            'item_gained': self.player.get_item_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward
