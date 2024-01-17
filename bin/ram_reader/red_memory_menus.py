@@ -11,6 +11,9 @@ TEXT_BOX_ID = 0xD125
 # fix me if you can find a better value like 0xCF34 but it doesn't seem to work in pyboy??)
 UNKNOWN_D730 = 0xD730  
 
+# General purpose working register, use extreme caution when using this
+PRE_DEF_ID = 0xCC4E
+
 # Core menu navigation identification
 TEXT_MENU_CURSOR_LOCATION = (0xCC30, 0xCC31)
 TEXT_MENU_CURSOR_COUNTER_1 = 0xCC26 # Stale after interaction

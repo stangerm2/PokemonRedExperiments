@@ -397,14 +397,10 @@ class Items:
         self.env = env
 
     def _get_items_in_range(self, size, index, offset):
-        items = []
+        items = [None] * size
         for i in range(size):
             item_val = self.env.ram_interface.read_memory(index + i * offset)
-            if item_val == 0xFF:
-                break
-
-            items.append(item_val)
-            
+            items[i] = 0 if item_val == 0xFF else item_val  # Modern parsing, we don't need termination byte so strip it out
         return items
     
     def get_bag_item_count(self):
@@ -516,6 +512,9 @@ class Menus:
     def __init__(self, env):
         self.env = env
 
+    def _get_sub_menu_item_number(self):
+        return self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
+
     def get_item_menu_context(self):
         cursor_location = (self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_LOCATION[0]),
                     self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_LOCATION[1]))
@@ -528,7 +527,8 @@ class Menus:
                 
         cursor_location, state = self.get_item_menu_context()
         text_dst_ptr = self.env.ram_interface.read_memory(TEXT_DST_POINTER)
-        if state == RedRamMenuValues.MENU_YES or state == RedRamMenuValues.MENU_NO:
+        id_working_reg = self.env.ram_interface.read_memory(PRE_DEF_ID)
+        if (state == RedRamMenuValues.MENU_YES or state == RedRamMenuValues.MENU_NO) and id_working_reg == 0x2D:
             if text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_YES:
                 return RedRamMenuValues.OVERWRITE_MOVE_YES
             elif text_dst_ptr == 0xF2 and state == RedRamMenuValues.MENU_NO:
@@ -539,7 +539,7 @@ class Menus:
                 return RedRamMenuValues.ABANDON_MOVE_NO
             elif text_dst_ptr == 0xEE or text_dst_ptr == 0xF0:  # would otherwise be default y/n on a text screen
                 return self.env.GameState.TALKING
-        elif cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_N and text_dst_ptr == 0xB9:  # Overwrite one off shared menu
+        elif cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_N and text_dst_ptr == 0xB9 and id_working_reg == 0x2D:  # Shares submenu w/ mart 3-10 items
             return RedRamMenuValues.OVERWRITE_MOVE_1
         elif (cursor_location == RedRamMenuKeys.OVERWRITE_MOVE_2 or
                cursor_location == RedRamMenuKeys.OVERWRITE_MOVE_3 or
@@ -600,12 +600,12 @@ class Menus:
 
     def _get_menu_item_state(self, cursor_location):
         if cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_1 or cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_2 or cursor_location == RedRamMenuKeys.BATTLE_MART_PC_ITEM_N:
-            item_number = self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_1) + self.env.ram_interface.read_memory(TEXT_MENU_CURSOR_COUNTER_2) + 1
             if self.env.ram_interface.read_memory(ITEM_COUNT_SCREEN_PEAK) == 0x7E:  # 0x7E is the middle pokeball icon on screen, unique to the 3 sub menu pop out
                 return RedRamMenuValues.ITEM_QUANTITY
             
-            # self.env.ram_interface.write_memory(ITEM_SELECTION_QUANTITY, 0x00)
-            
+            ITEM_SELECTION_QUANTITY
+                        
+            item_number = self._get_sub_menu_item_number()
             return TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
         
         return RedRamSubMenuValues.UNKNOWN_MENU
