@@ -411,13 +411,20 @@ class Items:
         return np.array(self._get_items_in_range(BAG_SIZE, BAG_ITEMS_INDEX, ITEMS_OFFSET))
 
     def get_bag_item_quantities(self):
-        return np.array([self.env.ram_interface.read_memory(BAG_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(BAG_SIZE)], dtype=np.uint8)
-
+        item_quan = [self.env.ram_interface.read_memory(BAG_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(self.get_bag_item_count())]
+        padded_quan = np.pad(item_quan, (0, BAG_SIZE - len(item_quan)), constant_values=0)
+        return np.array(padded_quan, dtype=np.uint8)
+    
+    def get_pc_item_count(self):
+        return self.env.ram_interface.read_memory(PC_TOTAL_ITEMS)
+        
     def get_pc_item_ids(self):
         return np.array(self._get_items_in_range(STORAGE_SIZE, PC_ITEMS_INDEX, ITEMS_OFFSET))
     
     def get_pc_item_quantities(self):
-        return np.array([self.env.ram_interface.read_memory(PC_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(STORAGE_SIZE)], dtype=np.uint8)
+        item_quan = [self.env.ram_interface.read_memory(PC_ITEM_QUANTITY_INDEX + i * ITEMS_OFFSET) for i in range(self.get_pc_item_count())]
+        padded_quan = np.pad(item_quan, (0, STORAGE_SIZE - len(item_quan)), constant_values=0)
+        return np.array(padded_quan, dtype=np.uint8)
     
     def get_pc_pokemon_count(self):
         return self.env.ram_interface.read_memory(BOX_POKEMON_COUNT)

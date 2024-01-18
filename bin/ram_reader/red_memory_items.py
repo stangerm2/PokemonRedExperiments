@@ -32,6 +32,9 @@ BAG_ITEM_QUANTITY_INDEX = 0xD31F
 # Storage/PC Items
 STORAGE_SIZE = 50
 
+# The count of all the items held in players pc
+PC_TOTAL_ITEMS = 0xD53A
+
 # Items in storage/pc (50 items max)
 PC_ITEMS_INDEX = 0xD53B
 

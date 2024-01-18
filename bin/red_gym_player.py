@@ -17,6 +17,9 @@ class RedGymPlayer:
     def _lookup_player_items(self, item_ids, item_counts):
         items = {}
         for i in range(len(item_ids)):
+            if item_counts[i] == 0:
+                break
+
             items[item_ids[i]] = item_counts[i]
 
         return items
