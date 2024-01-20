@@ -108,6 +108,9 @@ class World:
     def get_playing_audio_track(self):
         return self.env.ram_interface.read_memory(AUDIO_CURRENT_TRACK_NO_DELAY)
     
+    def get_overlay_audio_track(self):
+        return self.env.ram_interface.read_memory(AUDIO_OVERLAY_SOUND)
+    
     def get_pokemart_options(self):
         mart = np.zeros((POKEMART_AVAIL_SIZE,), dtype=np.uint8)
         for i in range(POKEMART_AVAIL_SIZE):

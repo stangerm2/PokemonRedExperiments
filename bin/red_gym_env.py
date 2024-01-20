@@ -65,7 +65,7 @@ def initialize_observation_space(extra_buttons):
             "bag_quantities": spaces.Box(low=0, high=1, shape=(BAG_SIZE,), dtype=np.float32),
 
             # World
-            "audio": spaces.MultiDiscrete([256]),
+            "audio": spaces.MultiDiscrete([256] * 2),
             "pokemart_items": spaces.MultiDiscrete([256] * POKEMART_AVAIL_SIZE),
             "item_selection_quan": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             "pc_pokemon": spaces.MultiDiscrete([256] * BOX_SIZE * 2),

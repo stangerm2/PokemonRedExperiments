@@ -40,8 +40,9 @@ class RedGymWorld:
         return pokecenter_array
     
     def obs_playing_audio(self):
-        audio_id = self.env.game.world.get_playing_audio_track()
-        return np.array([audio_id], dtype=np.uint8)
+        current_audio = self.env.game.world.get_playing_audio_track()
+        overlay_audio = self.env.game.world.get_overlay_audio_track()
+        return np.array([current_audio, overlay_audio], dtype=np.uint8)
     
     def obs_pokemart_items(self):
         pokemart_items = self.env.game.world.get_pokemart_options()
