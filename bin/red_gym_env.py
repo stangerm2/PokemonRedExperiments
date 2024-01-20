@@ -17,41 +17,6 @@ from red_env_constants import *
 from ram_reader.red_ram_api import *
 
 
-'''            # Game View:
-            "screen": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.float32),
-            "visited": spaces.Box(low=0, high=1, shape=(SCREEN_VIEW_SIZE + 3, SCREEN_VIEW_SIZE), dtype=np.uint8),
-            "action": spaces.MultiDiscrete([len(pyboy_init_actions(extra_buttons)) + 1]),
-            #"p2p": spaces.MultiBinary(150),
-
-            # Game:
-            "game_state": spaces.Discrete(MENU_TOTAL_SIZE + 1),
-            "move_allowed": spaces.Discrete(2),  # True or False
-
-            # Player:
-            "pokemon_roster": spaces.Box(low=0, high=1, shape=(POKEMON_MAX_COUNT, POKEMON_TOTAL_ATTRIBUTES), dtype=np.float32),
-            "money": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "badges": spaces.MultiBinary(4),  # 8 badges inside 4 bits
-
-            # Items
-            "bag_ids": spaces.Box(low=0, high=1, shape=(BAG_SIZE,), dtype=np.float32),
-            "bag_quan": spaces.Box(low=0, high=1, shape=(BAG_SIZE,), dtype=np.float32),
-            "pc_item_ids": spaces.Box(low=0, high=1, shape=(STORAGE_SIZE,), dtype=np.float32),
-            "pc_item_quan": spaces.Box(low=0, high=1, shape=(STORAGE_SIZE,), dtype=np.float32),
-            "pc_pokemon": spaces.Box(low=0, high=1, shape=(BOX_SIZE, 2), dtype=np.float32), # 2 = Pokemon ID & Level
-            "item_selection_quan": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32), # Quantity of item selected (to buy/sell), 0-99
-
-            # World
-            "milestones": spaces.Box(low=0, high=1, shape=(9,), dtype=np.float32),  # TODO: Import better milestone list
-            "audio": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "pokemart_items": spaces.Box(low=0, high=1, shape=(POKEMART_AVAIL_SIZE,), dtype=np.float32),
-
-            # Battle
-            "battle_type": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "enemies_left": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
-            "player_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_PLAYER_ATTRIBUTES,), dtype=np.float32),
-            "enemy_stats": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_ENEMIES_ATTRIBUTES,), dtype=np.float32),
-            "turn_info": spaces.Box(low=0, high=1, shape=(BATTLE_TOTAL_TURN_ATTRIBUTES,), dtype=np.float32),'''
-
 def initialize_observation_space(extra_buttons):
     return spaces.Dict(
         {
@@ -95,30 +60,17 @@ def initialize_observation_space(extra_buttons):
             "pokecenters": spaces.MultiBinary(16),
 
             # Items
+            "money": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             "bag_ids": spaces.MultiDiscrete([256] * BAG_SIZE),
             "bag_quantities": spaces.Box(low=0, high=1, shape=(BAG_SIZE,), dtype=np.float32),
-        }
-    )
-
-'''            
-
-
-
-            # Items
-            "bag_ids": spaces.Box(low=0, high=255, shape=(20,), dtype=np.uint8),
-            "bag_quan": spaces.Box(low=0, high=255, shape=(20,), dtype=np.uint8),
-            "pc_item_ids": spaces.Box(low=0, high=255, shape=(50,), dtype=np.uint8),
-            "pc_item_quan": spaces.Box(low=0, high=255, shape=(50,), dtype=np.uint8),
-            "pc_pokemon": spaces.Box(low=0, high=255, shape=(20, 2), dtype=np.uint8), # 2 = Pokemon ID & Level
-            "item_selection_quan": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8), # Quantity of item selected (to buy/sell), 0-99
 
             # World
-            "milestones": spaces.Box(low=0, high=255, shape=(9,), dtype=np.uint8),  # TODO: Import better milestone list
-            "audio": spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8),
-            "pokemart_items": spaces.Box(low=0, high=255, shape=(10,), dtype=np.uint8),
-
-'''
-
+            "audio": spaces.MultiDiscrete([256]),
+            "pokemart_items": spaces.MultiDiscrete([256] * POKEMART_AVAIL_SIZE),
+            "item_selection_quan": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
+            "pc_pokemon": spaces.MultiDiscrete([256] * BOX_SIZE * 2),
+        }
+    )
 
 
 class RedGymEnv(Env):
@@ -220,13 +172,10 @@ class RedGymEnv(Env):
 
         self.agent_stats.append({
             'reward': self.total_reward,
-            # 'last_action': action,
             'discovered': self.map.steps_discovered,
             'collisions': self.map.collisions,
             'wild_mon_killed': self.battle.wild_pokemon_killed,
             'trainers_killed': self.battle.trainer_pokemon_killed,
-            #'trainer_mon_killed': self.battle.trainer_pokemon_killed,
-            #'gym_mon_killed': self.battle.gym_pokemon_killed,
             'died': self.battle.died,
             'battle_action_avg': self.battle.get_avg_battle_action_avg(),
             'battle_turn_avg': self.battle.get_avg_battle_turn_avg(),
@@ -283,32 +232,22 @@ class RedGymEnv(Env):
             "pokecenters":         self.world.obs_pokecenters_visited(),
 
             # Items
+            "money":               self.player.obs_total_money(),
             "bag_ids":             self.player.obs_bag_ids(),
             "bag_quantities":      self.player.obs_bag_quantities(),
 
+            # World
+            "audio":               self.world.obs_playing_audio(),
+            "pokemart_items":      self.world.obs_pokemart_items(),
+            "item_selection_quan": self.world.obs_item_selection_quantity(),
+            "pc_pokemon":          self.world.obs_pc_pokemon(),
         }
 
         #for key, val in observation.items():
         #    print(f'{key}: {val}')
 
         return observation
-    
-    '''            
 
-            # Items
-            "bag_ids": self.game.items.get_bag_item_ids(),
-            "bag_quan": self.game.items.get_bag_item_quantities(),
-            "pc_item_ids": self.game.items.get_pc_item_ids(),
-            "pc_item_quan": self.game.items.get_pc_item_quantities(),
-            "pc_pokemon": self.game.items.get_pc_pokemon_stored(),
-            "item_selection_quan": self.game.items.get_item_quantity(),
-            
-            # World
-            "milestones": self.game.world.get_game_milestones(),
-            "audio": np.array([self.game.world.get_playing_audio_track()], dtype=np.uint8),
-            "pokemart_items": self.game.world.get_pokemart_options(),
-
-'''
 
     def _update_rewards(self, action):
         state_scores = {

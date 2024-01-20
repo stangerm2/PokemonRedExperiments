@@ -122,3 +122,6 @@ class RedGymPlayer:
     
     def obs_bag_quantities(self):
         return self.env.support.normalize_np_array(self.env.game.items.get_bag_item_quantities())
+    
+    def obs_total_money(self):
+        return self.env.support.normalize_np_array(np.array([self.money], dtype=np.float32), False, 200000)

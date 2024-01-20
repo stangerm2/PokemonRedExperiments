@@ -1,5 +1,6 @@
 import numpy as np
 from red_env_constants import *
+from ram_reader.red_memory_items import *
 
 class RedGymWorld:
     def __init__(self, env):
@@ -37,3 +38,18 @@ class RedGymWorld:
         # Unpack the uint8 array into bits
         pokecenter_array = np.unpackbits(uint8_array)
         return pokecenter_array
+    
+    def obs_playing_audio(self):
+        audio_id = self.env.game.world.get_playing_audio_track()
+        return np.array([audio_id], dtype=np.uint8)
+    
+    def obs_pokemart_items(self):
+        pokemart_items = self.env.game.world.get_pokemart_options()
+        padded_items = np.pad(pokemart_items, (0, POKEMART_AVAIL_SIZE - len(pokemart_items)), constant_values=0)
+        return np.array(padded_items, dtype=np.uint8)
+    
+    def obs_item_selection_quantity(self):
+        return self.env.support.normalize_np_array(self.env.game.items.get_item_quantity())
+    
+    def obs_pc_pokemon(self):
+        return self.env.game.items.get_pc_pokemon_stored().flatten()
