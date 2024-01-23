@@ -11,7 +11,7 @@ TEXT_BOX_ID = 0xD125
 # fix me if you can find a better value like 0xCF34 but it doesn't seem to work in pyboy??)
 UNKNOWN_D730 = 0xD730  
 
-# General purpose working register, use extreme caution when using this
+# General purpose working registers, use extreme caution when using this
 PRE_DEF_ID = 0xCC4E
 
 # Core menu navigation identification
@@ -85,6 +85,15 @@ class RedRamMenuKeys:
     # TODO: Get Nickname state and add it to filter list (0xC4C0 text nickname key hack?)
 
     MENU_NO_HACK = (0x69, 0xC4)
+
+    POKEMON_MENU_N0 = (0xFA, 0xC3)
+    POKEMON_MENU_N1 = (0x22, 0xC4)
+    POKEMON_MENU_N2 = (0x4A, 0xC4)
+    POKEMON_MENU_N3 = (0x72, 0xC4)
+    POKEMON_MENU_B0 = (0xFC, 0xC3)
+    POKEMON_MENU_B1 = (0x24, 0xC4)
+    POKEMON_MENU_B2 = (0x4C, 0xC4)
+    POKEMON_MENU_B3 = (0x74, 0xC4)
 
 
 class RedRamMenuValues(IntEnum):
@@ -190,6 +199,13 @@ class RedRamMenuValues(IntEnum):
     SWITCH_POKEMON_YES = 107
     SWITCH_POKEMON_NO = 108
 
+    POKEMON_MENU_CUT = 109
+    POKEMON_MENU_FLY = 110
+    POKEMON_MENU_SURF = 111
+    POKEMON_MENU_STRENGTH = 112
+    POKEMON_MENU_FLASH = 113
+    POKEMON_MENU_DIG = 114
+
 
 BATTLE_MENU_STATES = {
     RedRamMenuValues.BATTLE_MENU_FIGHT,
@@ -278,6 +294,8 @@ TEXT_MENU_CURSOR_LOCATIONS = {
     RedRamMenuKeys.OVERWRITE_MOVE_2: RedRamMenuValues.OVERWRITE_MOVE_2,
     RedRamMenuKeys.OVERWRITE_MOVE_3: RedRamMenuValues.OVERWRITE_MOVE_3,
     RedRamMenuKeys.OVERWRITE_MOVE_4: RedRamMenuValues.OVERWRITE_MOVE_4,
+
+    # POKEMON_MENU_N# - can't map directly b/c HM's can be in any slot
 }
 
 # The count when buying/selling items
@@ -310,6 +328,10 @@ TEXT_MENU_ITEM_LOCATIONS = {
 # Just diff'd text memory until found unique diff in text char's, as they have diff text box's which are still constant
 PC_SUB_MENU_SCREEN_PEEK = 0xC41A
 PC_SUB_MENU_DEPO_WITH_SCREEN_PEEK = 0xC4A0
+HM_N0_MENU_SCREEN_PEEK = 0xC3FD
+HM_N1_MENU_SCREEN_PEEK = 0xC423
+HM_N2_MENU_SCREEN_PEEK = 0xC44B
+HM_N3_MENU_SCREEN_PEEK = 0xC475
 
 
 # PC Sub Menu's, they have the same values as the main menu's so they need to be differentiated
@@ -325,23 +347,23 @@ class RedRamSubMenuKeys:
 
 
 class RedRamSubMenuValues(IntEnum):
-    UNKNOWN_MENU = 110
-    PC_SOMEONE_WITHDRAW = 111
-    PC_SOMEONE_DEPOSIT = 112
-    PC_SOMEONE_RELEASE = 113
-    PC_SOMEONE_CHANGE_BOX = 114
-    PC_SOMEONE_EXIT = 115
+    UNKNOWN_MENU = 115
+    PC_SOMEONE_WITHDRAW = 116
+    PC_SOMEONE_DEPOSIT = 117
+    PC_SOMEONE_RELEASE = 118
+    PC_SOMEONE_CHANGE_BOX = 119
+    PC_SOMEONE_EXIT = 120
 
-    PC_SOMEONE_CONFIRM = 116
-    PC_SOMEONE_CONFIRM_STATS = 117
-    PC_SOMEONE_CONFIRM_CANCEL = 118
-    PC_SOMEONE_CONFIRM_WITHDRAW = 119
-    PC_SOMEONE_CONFIRM_DEPOSIT = 120
+    PC_SOMEONE_CONFIRM = 121
+    PC_SOMEONE_CONFIRM_STATS = 122
+    PC_SOMEONE_CONFIRM_CANCEL = 123
+    PC_SOMEONE_CONFIRM_WITHDRAW = 124
+    PC_SOMEONE_CONFIRM_DEPOSIT = 125
 
-    PC_SELF_WITHDRAW_ITEM = 121
-    PC_SELF_DEPOSIT_ITEM = 122
-    PC_SELF_TOSS_ITEM = 123
-    PC_SELF_EXIT = 124
+    PC_SELF_WITHDRAW_ITEM = 126
+    PC_SELF_DEPOSIT_ITEM = 127
+    PC_SELF_TOSS_ITEM = 128
+    PC_SELF_EXIT = 129
 
 MENU_TOTAL_SIZE = int(RedRamSubMenuValues.PC_SELF_EXIT) + 1
 
@@ -364,3 +386,12 @@ PC_ITEM_MENU_CURSOR_LOCATIONS = {
     RedRamSubMenuKeys.SUB_MENU_4: RedRamSubMenuValues.PC_SELF_EXIT,
 }
 
+
+HM_MENU_LOOKUP = {
+    0x0F: RedRamMenuValues.POKEMON_MENU_CUT,
+    0x13: RedRamMenuValues.POKEMON_MENU_FLY,
+    0x39: RedRamMenuValues.POKEMON_MENU_SURF,
+    0x46: RedRamMenuValues.POKEMON_MENU_STRENGTH,
+    0x94: RedRamMenuValues.POKEMON_MENU_FLASH,
+    0x5B: RedRamMenuValues.POKEMON_MENU_DIG,
+}

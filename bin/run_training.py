@@ -37,8 +37,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
 
         # Game Class
-        self.game_state_lstm = nn.LSTM(input_size = 132 * OBSERVATION_MEMORY_SIZE, hidden_size=features_dim, batch_first=True)
-
+        self.game_state_lstm = nn.LSTM(input_size = (130 + 7) * OBSERVATION_MEMORY_SIZE, hidden_size=features_dim, batch_first=True)
 
         # Move Class
         self.player_moves_embedding = nn.Embedding(num_embeddings=256, embedding_dim=8)

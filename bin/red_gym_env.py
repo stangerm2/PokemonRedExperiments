@@ -27,7 +27,7 @@ def initialize_observation_space(extra_buttons):
 
             # Game:
             "action": spaces.MultiDiscrete([7] * OBSERVATION_MEMORY_SIZE),
-            "game_state": spaces.MultiDiscrete([125] * OBSERVATION_MEMORY_SIZE),
+            "game_state": spaces.MultiDiscrete([130] * OBSERVATION_MEMORY_SIZE),
 
             # Player:
             "player_pokemon": spaces.MultiDiscrete([256] * 6),

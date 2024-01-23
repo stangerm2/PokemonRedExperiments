@@ -578,6 +578,11 @@ class Menus:
             sub_state = self._get_sub_menu_state(cursor_location)
             if sub_state != RedRamSubMenuValues.UNKNOWN_MENU:
                 return sub_state
+            
+            # check HM menu overlays
+            sub_state = self._get_hm_menu_state(cursor_location)
+            if sub_state != RedRamSubMenuValues.UNKNOWN_MENU:
+                return sub_state
 
             return state
         else:
@@ -587,6 +592,48 @@ class Menus:
                 self.env.ram_interface.write_memory(POKEMART_ITEMS + i, 0x00)
 
         return self.env.GameState.GAME_STATE_UNKNOWN
+    
+    def _get_hm_menu_state(self, cursor_location):
+        cc50 = self.env.ram_interface.read_memory(0xCC50)        
+        cc52 = self.env.ram_interface.read_memory(0xCC52)        
+    
+        # working reg's are used and set to 41 & 14 when in pokemart healing menu
+        if (cc50 == 0x41 and cc52 == 0x14) and (cursor_location == RedRamMenuKeys.POKECENTER_HEAL or cursor_location == RedRamMenuKeys.POKECENTER_CANCEL):
+            return RedRamSubMenuValues.UNKNOWN_MENU  # it's known but the next stage will set it to pokecenter
+
+        # working reg's are used and set to 58 & 20 when in HM menu
+        if not (cc50 == 0x58 and cc52 == 0x20 and self.env.ram_interface.read_memory(ITEM_COUNT_SCREEN_PEAK) == 0x7C):
+            return RedRamSubMenuValues.UNKNOWN_MENU
+        
+        # Awful hack, strength shift the menu by 1 due to it's length so do another overwrite
+        if cursor_location == RedRamMenuKeys.PC_SOMEONE_DEPOSIT_WITHDRAW:
+            return RedRamMenuValues.MENU_SELECT_STATS
+        elif cursor_location == RedRamMenuKeys.PC_SOMEONE_STATUS:
+            return RedRamMenuValues.MENU_SELECT_SWITCH
+        elif cursor_location == RedRamMenuKeys.PC_SOMEONE_CANCEL:
+            return RedRamMenuValues.MENU_SELECT_CANCEL
+                
+        cursor_menu_position = self.env.ram_interface.read_memory(TEXT_MENU_LAST_MENU_ITEM)
+        max_menu_elem = self.env.ram_interface.read_memory(TEXT_MENU_MAX_MENU_ITEM)
+        menu_offset = max_menu_elem - cursor_menu_position - 3  # There are 3 menu's (stats, switch, cancel) 0-indexed
+
+        # There are no HM's after the first 3 menu's
+        if menu_offset < 0:
+            return RedRamSubMenuValues.UNKNOWN_MENU
+
+        pokemon_selected = self.env.ram_interface.read_memory(0xCC2B)
+        move_1, move_2, move_3, move_4 = Pokemon(self.env).get_pokemon_moves(pokemon_selected * PARTY_OFFSET)
+
+        for move in [move_4, move_3, move_2, move_1]:
+            if move in HM_MENU_LOOKUP:
+                menu_offset -= 1
+
+            if menu_offset < 0:
+                return HM_MENU_LOOKUP[move]
+    
+        return RedRamSubMenuValues.UNKNOWN_MENU
+
+
     
     def _get_sub_menu_state(self, cursor_location):
         if PC_POKE_MENU_CURSOR_LOCATIONS.get(cursor_location, RedRamSubMenuValues.UNKNOWN_MENU) == RedRamSubMenuValues.UNKNOWN_MENU:
@@ -614,8 +661,6 @@ class Menus:
             if self.env.ram_interface.read_memory(ITEM_COUNT_SCREEN_PEAK) == 0x7E:  # 0x7E is the middle pokeball icon on screen, unique to the 3 sub menu pop out
                 return RedRamMenuValues.ITEM_QUANTITY
             
-            ITEM_SELECTION_QUANTITY
-                        
             item_number = self._get_sub_menu_item_number()
             return TEXT_MENU_ITEM_LOCATIONS.get(item_number, RedRamMenuValues.ITEM_RANGE_ERROR)
         
