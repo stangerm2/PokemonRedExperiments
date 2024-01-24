@@ -771,36 +771,39 @@ class Player:
             bit_count += binary_value.count('1')
 
         return bit_count
+    
+    def _get_lineup_size(self):
+        return self.env.ram_interface.read_memory(POKEMON_PARTY_COUNT)
 
     def get_player_lineup_dict(self):
-        return [Pokemon(self.env).get_pokemon_data_dict(i) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_data_dict(i) for i in range(self._get_lineup_size())]
 
     def get_player_lineup_pokemon(self):
-        return [Pokemon(self.env).get_pokemon(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_levels(self):
-        return [Pokemon(self.env).get_pokemon_level(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_level(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_health(self):
-        return [Pokemon(self.env).get_pokemon_health(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_health(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_xp(self):
-        return [Pokemon(self.env).get_pokemon_xp(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_xp(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_moves(self):
-        return [Pokemon(self.env).get_pokemon_moves(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_moves(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_pp(self):
-        return [Pokemon(self.env).get_pokemon_pp_avail(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_pp_avail(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_stats(self):
-        return [Pokemon(self.env).get_pokemon_stats(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_stats(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_types(self):
-        return [Pokemon(self.env).get_pokemon_type(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_type(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def get_player_lineup_status(self):
-        return [Pokemon(self.env).get_pokemon_status(i * PARTY_OFFSET) for i in range(POKEMON_PARTY_SIZE)]
+        return [Pokemon(self.env).get_pokemon_status(i * PARTY_OFFSET) for i in range(self._get_lineup_size())]
     
     def is_following_npc(self):
         if self.env.ram_interface.read_memory(FOLLOWING_NPC_FLAG) != 0x00:

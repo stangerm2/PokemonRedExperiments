@@ -33,11 +33,11 @@ def initialize_observation_space(extra_buttons):
             "player_pokemon": spaces.MultiDiscrete([256] * 6),
             "player_levels": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
             "player_types": spaces.MultiDiscrete([27] * 2 * 6,),
-            "player_hp": spaces.Box(low=0, high=1, shape=(6, 2), dtype=np.float32),
+            "player_hp": spaces.Box(low=0, high=1, shape=(6 * 2,), dtype=np.float32),
             "player_moves": spaces.MultiDiscrete([167] * 6 * 4, ),
             "player_xp": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
-            "player_pp": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
-            "player_stats": spaces.Box(low=0, high=1, shape=(6, 4), dtype=np.float32),
+            "player_pp": spaces.Box(low=0, high=1, shape=(6 * 4,), dtype=np.float32),
+            "player_stats": spaces.Box(low=0, high=1, shape=(6 * 4,), dtype=np.float32),
             "player_status": spaces.MultiBinary(6 * 5),
 
             # Battle
