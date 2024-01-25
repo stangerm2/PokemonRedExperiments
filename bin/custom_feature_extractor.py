@@ -83,14 +83,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Items Class
         self.items_fc = nn.Sequential(
-            nn.Linear(5140, features_dim),
+            nn.Linear(5141, features_dim),
+            nn.ReLU(),
+            nn.AdaptiveMaxPool1d(output_size=4),
+        )
+
+
+        # World
+        self.mart_fc = nn.Sequential(
+            nn.Linear(2561, features_dim),
+            nn.ReLU(),
+            nn.AdaptiveMaxPool1d(output_size=4),
+        )
+
+        self.pc_fc = nn.Sequential(
+            nn.Linear(10240, 8),
             nn.ReLU(),
             nn.AdaptiveMaxPool1d(output_size=4),
         )
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(514, 64),
+            nn.Linear(1030, 64),
             nn.ReLU(),
             nn.Linear(64, features_dim),
             nn.ReLU()
@@ -229,12 +243,28 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
 
         # Items Class
+        money_input = observations["money"].view(batch_size, -1)
         bag_ids_input = observations["bag_ids"].view(batch_size, -1)
         bag_quantities_input = observations["bag_quantities"].view(batch_size, -1)
         item_features = self.items_fc(torch.cat([
+            money_input,
             bag_ids_input,
             bag_quantities_input,
         ], dim=1)).to(device)
+
+
+        # World
+        audio_input = observations["audio"].view(batch_size, -1)
+        pokemart_items_input = observations["pokemart_items"].view(batch_size, -1)
+        item_sel_quan_input = observations["item_selection_quan"].view(batch_size, -1)
+        pc_pokemon_input = observations["pc_pokemon"].view(batch_size, -1)
+
+        mart_features = self.mart_fc(torch.cat([
+            pokemart_items_input,
+            item_sel_quan_input,
+        ], dim=1)).to(device)
+
+        pc_pokemon_features = self.pc_fc(pc_pokemon_input)
 
 
         # Final FC layer
@@ -246,6 +276,9 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             badges_input,
             pokecenters_input,
             item_features,
+            mart_features,
+            audio_input,
+            pc_pokemon_features,
         ], dim=1)
 
 
