@@ -1,6 +1,7 @@
 import numpy as np
 from red_env_constants import *
 from ram_reader.red_memory_items import *
+from ram_reader.red_memory_battle import BattleTypes
 
 
 class RedGymPlayer:
@@ -13,6 +14,18 @@ class RedGymPlayer:
         self.bag_items = {}
         self.bank_items = {}
         self.money = 0
+        self.died = 0
+        self.dead = False
+
+
+    def _inc_died(self):
+        if self.env.game.battle.get_battle_type() == BattleTypes.DIED or self.env.game.player.is_player_dead():
+            if not self.dead:
+                self.died += 1
+                self.dead = True
+                return
+        else:
+            self.dead = False
 
     def _lookup_player_items(self, item_ids, item_counts):
         items = {}
@@ -27,7 +40,9 @@ class RedGymPlayer:
     def _get_player_money(self):
         return self.env.game.player.get_player_money()
     
-
+    def save_post_action_player(self):
+        self._inc_died()
+    
     def get_item_reward(self):
         bag_item_ids = self.env.game.items.get_bag_item_ids()
         bag_item_counts = self.env.game.items.get_bag_item_quantities()

@@ -827,4 +827,6 @@ class Player:
         money_int = int(money_hex, 10)
         return money_int
 
+    def is_player_dead(self):
+        return self.env.ram_interface.read_memory(PLAYER_DEAD) == 0xFF
     

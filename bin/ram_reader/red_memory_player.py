@@ -265,3 +265,6 @@ POKEMON_LOOKUP = {
     75: "Zapdos",
     107: "Zubat"
 }
+
+# Dead, out of battle
+PLAYER_DEAD = 0xD12D

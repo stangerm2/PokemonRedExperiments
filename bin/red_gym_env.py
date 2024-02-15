@@ -163,6 +163,7 @@ class RedGymEnv(Env):
     def _run_post_action_steps(self):
         self.map.save_post_action_pos()
         self.battle.save_post_action_battle()
+        self.player.save_post_action_player()
 
     def get_check_if_done(self):
         return self.support.check_if_done()
@@ -176,7 +177,7 @@ class RedGymEnv(Env):
             'collisions': self.map.collisions,
             'wild_mon_killed': self.battle.wild_pokemon_killed,
             'trainers_killed': self.battle.trainer_pokemon_killed,
-            'died': self.battle.died,
+            'died': self.player.died,
             'battle_action_avg': self.battle.get_avg_battle_action_avg(),
             'battle_turn_avg': self.battle.get_avg_battle_turn_avg(),
             'k/d': self.battle.get_kill_to_death(),

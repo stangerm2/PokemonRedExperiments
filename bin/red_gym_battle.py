@@ -36,7 +36,6 @@ class RedGymBattle:
         self.wild_pokemon_killed = 0
         self.trainer_pokemon_killed = 0
         self.gym_pokemon_killed = 0
-        self.died = 0
         self.current_battle_action_cnt = 0
         self.total_battle_action_cnt = 0
         self.total_battle_turns = 0 
@@ -76,7 +75,7 @@ class RedGymBattle:
         #elif battle_type == int(BattleTypes.GYM_BATTLE):
         #    self.gym_pokemon_killed += 1
         elif battle_type == BattleTypes.DIED:
-            self.died += 1
+            pass
         else:
             print(f'Unknown battle type: {battle_type}')
 
@@ -201,7 +200,7 @@ class RedGymBattle:
 
         self.battle_won = self.env.game.battle.win_battle()  # allows single occurrence won flag per battle, when enemy mon's hp all -> 0
         if self.battle_won:
-            self.env.game.battle.battle_done = True
+            self.env.game.battle.battle_done = True   # TODO: The API handles setting this, back this out
 
         self._inc_move_count()
         self._inc_battle_counter()
@@ -344,9 +343,8 @@ class RedGymBattle:
         return self.total_battle_turns / self.total_battles
 
     def get_kill_to_death(self):
-        died = self.died
-        if died == 0:
-            died = 1
+        died = self.env.player.died + 1
+
         return (self.wild_pokemon_killed + self.trainer_pokemon_killed + self.gym_pokemon_killed) / died
     
     def get_damage_done_vs_taken(self):
