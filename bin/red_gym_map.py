@@ -16,12 +16,14 @@ class RedGymMap:
         self.visited_pos = {}
         self.visited_pos_order = deque()
         self.new_map = 0  # TODO: Inc/dec to 6
+        self.discovered_map = False
         self.moved_location = False  # indicates if the player moved 1 or more spot
         self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
         self.steps_discovered = 0
         self.collisions = 0
         self.collisions_lookup = {}
+        self.visited_maps = set()
 
         self.visited = np.zeros((1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
@@ -210,10 +212,14 @@ class RedGymMap:
             if (x_pos_new, y_pos_new, n_map_new) in self.visited_pos:
                 self.discovered_location = True
 
+            if n_map_new not in self.visited_maps:
+                self.visited_maps.add(n_map_new)
+                self.discovered_map = True
 
     def save_pre_action_pos(self):
         self.x_pos_org, self.y_pos_org, self.n_map_org = self.env.game.map.get_current_location()
         self.discovered_location = False
+        self.discovered_map = False
 
         if len(self.visited_pos_order) > MAX_STEP_MEMORY:
             del_key = self.visited_pos_order.popleft()
@@ -257,6 +263,11 @@ class RedGymMap:
             self.steps_discovered += 1
             return 1
         
+    def get_map_reward(self):
+        if self.discovered_map:
+            return 25
+        
+        return 0
 
     def update_map_obs(self):
         if self.env.game.battle.in_battle:

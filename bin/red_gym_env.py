@@ -254,6 +254,7 @@ class RedGymEnv(Env):
             # 'pallet_town_explorer': self.support.map.tester.pallet_town_explorer_reward(),
             # 'pallet_town_point_nav': self.support.map.tester.pallet_town_point_nav(),
             'explore': self.map.get_exploration_reward(),
+            'map': self.map.get_map_reward(),
             'battle': self.battle.get_battle_win_reward(),
             'battle_turn': self.battle.get_battle_action_reward(),
             'badges': self.player.get_badge_reward(),
