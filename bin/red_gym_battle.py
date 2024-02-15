@@ -226,15 +226,15 @@ class RedGymBattle:
         BATTLE_MOVE_CEILING = 350
         battle_type = self.env.game.battle.get_battle_type()
         if battle_type == BattleTypes.WILD_BATTLE:
-            return (max(0, (BATTLE_MOVE_CEILING - self.current_battle_action_cnt) * self.get_battle_decay()))
+            return (max(0, (BATTLE_MOVE_CEILING - self.current_battle_action_cnt) * self.get_battle_decay() / 10))
         elif battle_type == BattleTypes.TRAINER_BATTLE:
             pokemon_fought = self.env.game.battle.get_enemy_party_count()
-            return 200 * pokemon_fought + (max(0, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt))
+            return 100 * pokemon_fought + (max(0, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt))
         # TODO: Need to ID Gym Battle
         #elif battle_type == BattleTypes.GYM_BATTLE):
         #    return 600
         elif battle_type == BattleTypes.DIED:
-            return -5
+            return 0
         
         self.env.support.save_and_print_info(False, True, True)
         assert(False), "Unknown battle type"
@@ -353,6 +353,9 @@ class RedGymBattle:
         if self.total_party_hp_lost == 0:
             return 0
         return self.total_enemy_hp_lost / self.total_party_hp_lost
+    
+    def obs_in_battle(self):
+        return np.array([self.env.game.battle.in_battle], dtype=np.uint8)
     
     def obs_battle_type(self):
         if not self.env.game.battle.in_battle:
