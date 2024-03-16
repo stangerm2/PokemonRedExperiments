@@ -259,6 +259,14 @@ class RedGymMap:
             return 0
         elif (x_pos, y_pos, map_n) in self.visited_pos:
             return 0.01
+        
+        # FALL THROUGH: In new location
+
+        self.steps_discovered += 1
+        # Bonus for exploring pokecenter before talking to first nurse, ie. encourage early learning of pokecenter healing
+        # Note, that pokecenter will be one on entering the first pokecenter building and 2 when talking to the first nurse
+        if self.env.world.pokecenter_history <= 3 and self.env.game.world.get_playing_audio_track() == 0xBD:
+            return 10
         else:
             return 1
         
@@ -290,4 +298,3 @@ class RedGymMap:
             self._update_simple_screen_channel_obs()
             
         self.update_map_stats()
-
