@@ -30,9 +30,9 @@ def initialize_observation_space(extra_buttons):
             "game_state": spaces.MultiDiscrete([130] * OBSERVATION_MEMORY_SIZE),
 
             # Player:
-            "player_pokemon": spaces.MultiDiscrete([256] * 6),
+            "player_pokemon": spaces.MultiDiscrete([256] * 6), # 151
             "player_levels": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
-            "player_types": spaces.MultiDiscrete([27] * 2 * 6,),
+            "player_types": spaces.MultiDiscrete([27] * 2 * 6,),  # 15
             "player_hp": spaces.Box(low=0, high=1, shape=(6 * 2,), dtype=np.float32),
             "player_moves": spaces.MultiDiscrete([167] * 6 * 4, ),
             "player_xp": spaces.Box(low=0, high=1, shape=(6, ), dtype=np.float32),
@@ -41,6 +41,7 @@ def initialize_observation_space(extra_buttons):
             "player_status": spaces.MultiBinary(6 * 5),
 
             # Battle
+            "in_battle": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.uint8),
             "battle_type": spaces.MultiBinary(4),
             "enemies_left": spaces.Box(low=0, high=1, shape=(1, ), dtype=np.float32),
             "player_head_index": spaces.MultiDiscrete([7]),
@@ -69,6 +70,8 @@ def initialize_observation_space(extra_buttons):
             "pokemart_items": spaces.MultiDiscrete([256] * POKEMART_AVAIL_SIZE),
             "item_selection_quan": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
             "pc_pokemon": spaces.MultiDiscrete([256] * BOX_SIZE * 2),
+
+            "age": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
         }
     )
 
@@ -211,6 +214,7 @@ class RedGymEnv(Env):
             "player_status":     self.player.obs_player_status(),
 
             # Battle
+            "in_battle":           self.battle.obs_in_battle(),
             "battle_type":         self.battle.obs_battle_type(),
             "enemies_left":        self.battle.obs_enemies_left(),
 
@@ -242,6 +246,7 @@ class RedGymEnv(Env):
             "pokemart_items":      self.world.obs_pokemart_items(),
             "item_selection_quan": self.world.obs_item_selection_quantity(),
             "pc_pokemon":          self.world.obs_pc_pokemon(),
+            "age":                 np.array([self.reset_count / 24700000], dtype=np.float32),
         }
 
         #for key, val in observation.items():
