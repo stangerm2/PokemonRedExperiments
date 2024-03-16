@@ -225,10 +225,12 @@ class RedGymBattle:
         BATTLE_MOVE_CEILING = 350
         battle_type = self.env.game.battle.get_battle_type()
         if battle_type == BattleTypes.WILD_BATTLE:
-            return (max(0, (BATTLE_MOVE_CEILING - self.current_battle_action_cnt) * self.get_battle_decay() / 10))
+            multiplier = max(.1, -0.1 * self.env.reset_count + 1)  # 1 for resets less than 5, 1 to .1 until 10 resets, and 0.1 after 10 resets
+            return (max(0, (BATTLE_MOVE_CEILING - self.current_battle_action_cnt) * self.get_battle_decay())) * multiplier
         elif battle_type == BattleTypes.TRAINER_BATTLE:
+            multiplier = max(.20, -0.005 * self.env.reset_count + 1)  # 1 for resets less than 5, 1 to .1 until 10 resets, and 0.1 after 10 resets
             pokemon_fought = self.env.game.battle.get_enemy_party_count()
-            return 100 * pokemon_fought + (max(0, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt))
+            return (500 * pokemon_fought + (max(0, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt))) * multiplier
         # TODO: Need to ID Gym Battle
         #elif battle_type == BattleTypes.GYM_BATTLE):
         #    return 600
