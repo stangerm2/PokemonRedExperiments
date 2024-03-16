@@ -260,12 +260,21 @@ class RedGymMap:
         elif (x_pos, y_pos, map_n) in self.visited_pos:
             return 0.01
         else:
-            self.steps_discovered += 1
             return 1
         
     def get_map_reward(self):
-        if self.discovered_map:
-            return 25
+        _STARTING_MAPS = {
+            0x00,  # Pallet Town
+            0x28,  # Oak's Lab
+            0x25,  # Moms house 1st floor
+            0x26,  # Moms house 2nd floor
+            0x27,  # Rival's house
+        }
+
+        map_n = self.env.game.map.get_current_map()
+
+        if map_n not in _STARTING_MAPS and self.discovered_map:
+            return len(self.visited_maps) * 2
         
         return 0
 
