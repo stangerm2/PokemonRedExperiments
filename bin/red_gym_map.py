@@ -263,9 +263,11 @@ class RedGymMap:
         # FALL THROUGH: In new location
 
         self.steps_discovered += 1
-        # Bonus for exploring pokecenter before talking to first nurse, ie. encourage early learning of pokecenter healing
+        # Bonus for exploring Gym, encourage discovery of gym boss fights (0xC0)
+        # Bonus for exploring pokecenter/mart(0xBD) before talking to first nurse, ie. encourage early learning of pokecenter healing
         # Note, that pokecenter will be one on entering the first pokecenter building and 2 when talking to the first nurse
-        if self.env.world.pokecenter_history <= 3 and self.env.game.world.get_playing_audio_track() == 0xBD:
+        audio_track = self.env.game.world.get_playing_audio_track()
+        if audio_track == 0xC0 or (self.env.world.pokecenter_history <= 3 and audio_track == 0xBD):
             return 10
         else:
             return 1
