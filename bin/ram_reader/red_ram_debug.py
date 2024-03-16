@@ -90,7 +90,7 @@ def get_debug_str(game):
         game_state += get_items_str(game)
         game_state += get_world_str(game)
         game_state += get_battle_str(game)
-        game_state += get_map_str(game)
+        #game_state += get_map_str(game)
 
         return game_state
 
