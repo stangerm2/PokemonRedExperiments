@@ -33,18 +33,17 @@ class RedGymEnvSupport:
         random.seed(self.env.thread_id)  # + self.env.reset_count
 
     def choose_random_game_load(self):
-        save_file = "checkpoints_battles/"
 
         # pick a random starter string bulbasaur, charmander, squirtle
         starters = [
-            'bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
-            'charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
-            'squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
-            'mt_moon' + '/pokemon_ai_' + str(random.randint(0, 17)),
+            #'checkpoints_battles/bulbasaur' + '/pokemon_ai_' + str(random.randint(1, 24)),
+            #'checkpoints_battles/charmander' + '/pokemon_ai_' + str(random.randint(32, 58)),
+            #'checkpoints_battles/squirtle' + '/pokemon_ai_' + str(random.randint(58, 84)),
+            #'checkpoints_battles/mt_moon' + '/pokemon_ai_' + str(random.randint(0, 17)),
+            "checkpoints_pallet/pokemon_ai_" + str(random.randint(1, 22)),
+            #"checkpoints_bill/pokemon_ai_" + str(random.randint(0, 134)),
             ]
-        save_file += random.choice(starters)
-        #save_file += "bulbasaur/pokemon_ai_23"
-        #save_file = "checkpoints_bill/pokemon_ai_15"
+        save_file = random.choice(starters)
 
         return save_file
 
