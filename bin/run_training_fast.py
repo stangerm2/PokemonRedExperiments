@@ -88,6 +88,7 @@ if __name__ == '__main__':
     checkpoint_exists = exists(file_name)
     if len(file_name) != 0 and not checkpoint_exists:
         print('\nERROR: Checkpoint not found!')
+        exit(1)
     elif checkpoint_exists:
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
@@ -99,12 +100,12 @@ if __name__ == '__main__':
     else:
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
         model = PPO("MultiInputPolicy", env, policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
-                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.998, ent_coef=0.01,
+                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.997, ent_coef=0.01,
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)
 
-    model.learn(total_timesteps=ep_length * 32 * 1000, callback=CallbackList(callbacks))
+    model.learn(total_timesteps=ep_length * 128 * 1000, callback=CallbackList(callbacks))
 
     if use_wandb_logging:
         run.finish()
