@@ -23,7 +23,7 @@ class RedGymWorld:
             return 0
 
         self.pokecenter_history |= bitmask
-        return 1000
+        return 700
 
     def obs_game_state(self):
         self.game_history = np.roll(self.game_history, 1)
