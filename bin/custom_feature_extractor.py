@@ -104,9 +104,9 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
         # Fully connected layers for output
         self.fc_layers = nn.Sequential(
-            nn.Linear(1035, 64),
+            nn.Linear(1027, 256),
             nn.ReLU(),
-            nn.Linear(64, features_dim),
+            nn.Linear(256, features_dim),
             nn.ReLU()
         )
 
@@ -256,16 +256,6 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # World
         audio_input = observations["audio"].view(batch_size, -1)
         age_input = observations["age"].view(batch_size, -1)
-        pokemart_items_input = observations["pokemart_items"].view(batch_size, -1)
-        item_sel_quan_input = observations["item_selection_quan"].view(batch_size, -1)
-        pc_pokemon_input = observations["pc_pokemon"].view(batch_size, -1)
-
-        mart_features = self.mart_fc(torch.cat([
-            pokemart_items_input,
-            item_sel_quan_input,
-        ], dim=1)).to(device)
-
-        pc_pokemon_features = self.pc_fc(pc_pokemon_input)
 
 
         # Final FC layer
@@ -277,9 +267,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
             badges_input,
             pokecenters_input,
             item_features,
-            mart_features,
             audio_input,
-            pc_pokemon_features,
             age_input,
         ], dim=1)
 
