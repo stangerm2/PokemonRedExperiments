@@ -72,7 +72,7 @@ class RedGymPlayer:
             return 0
             
         # item_norm could be pos bought item or neg sold item but both are good rewards, using should always win over buy/sell loops b/c selling halves money value
-        return 10 * item_norm
+        return 25 * item_norm
     
 
     def get_badge_reward(self):
