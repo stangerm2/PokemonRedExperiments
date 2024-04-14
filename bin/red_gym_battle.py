@@ -128,16 +128,16 @@ class RedGymBattle:
         return avg_level / (size + 1)
     
     def _get_battle_turn_stats(self):
-        player = self.env.game.battle.get_player_party_head_modifiers()
-        enemy = self.env.game.battle.get_enemy_party_head_modifiers()
+        player_mods = sum(self.env.game.battle.get_player_party_head_modifiers())
+        enemy_mods = sum(self.env.game.battle.get_enemy_party_head_modifiers())
 
         player_hp_total, player_hp_avail = self.env.game.battle.get_player_party_head_hp()
         enemy_hp_total, enemy_hp_avail = self.env.game.battle.get_enemy_party_head_hp()
         return {
             'player_pokemon' : self.env.game.battle.get_player_head_index(),
             'enemy_pokemon' : self.env.game.battle.get_enemy_party_head_pokemon(),
-            'player_effects_sum' : sum(player[1:]),
-            'enemy_effects_sum' : sum(enemy[3:]),
+            'player_effects_sum' : player_mods,
+            'enemy_effects_sum' : enemy_mods,
             'player_hp_total' : player_hp_total,
             'player_hp_avail' : player_hp_avail,
             'enemy_hp_total' : enemy_hp_total,
@@ -282,10 +282,6 @@ class RedGymBattle:
         return 0
         
     def _get_battle_stats_reward(self, turn_stats):
-        # Can't have a stat inc/dec reward on the 1st turn b/c nothings happened yet
-        if self.total_battle_turns == 0:
-            return 0
-        
         player_modifiers_delta = turn_stats['player_effects_sum'] - self.battle_memory.pre_player_modifiers_sum  # pos good, neg bad
         enemy_modifiers_delta = turn_stats['enemy_effects_sum'] - self.battle_memory.pre_enemy_modifiers_sum  # pos bad, neg good
         player_hp_delta = turn_stats['player_hp_avail'] - self.battle_memory.pre_player_hp  # pos good, neg bad
@@ -294,22 +290,22 @@ class RedGymBattle:
         reward = 0
 
         if player_modifiers_delta > 0:
-            reward += 3
+            reward += 9
         if enemy_modifiers_delta < 0:
-            reward += 3
+            reward += 9
         if player_hp_delta > 0:
-            reward += 6 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
+            reward += 200 * max((player_hp_delta / turn_stats['player_hp_total']), 0.375)
         if enemy_hp_delta < 0:
-            reward += 6 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375) * turn_stats['type_hint']
+            reward += 50 * max((abs(enemy_hp_delta) / turn_stats['enemy_hp_total']), 0.375) * turn_stats['type_hint']
         if turn_stats['player_status'] == 0 and self.battle_memory.pre_player_status != 0:
-            reward += 5
+            reward += 200
         if turn_stats['enemy_status'] != 0 and self.battle_memory.pre_enemy_status == 0:
-            reward += 5
+            reward += 200
 
         return reward
     
     def get_battle_action_reward(self):
-        if not self.env.game.battle.in_battle:
+        if not self.env.game.battle.in_battle or self.current_battle_action_cnt < 20 or self.battle_won:
             return 0
 
         turn_stats = self._get_battle_turn_stats()
