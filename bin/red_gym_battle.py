@@ -1,5 +1,7 @@
 # Assuming these constants are defined in red_env_constants
+from cmath import exp
 from math import floor
+import math
 
 import numpy as np
 from red_env_constants import *
@@ -47,15 +49,6 @@ class RedGymBattle:
         self.last_party_head_hp = 0
         self.last_enemy_head_hp = 0
         self.battle_memory = None  # Don't use the space unless in battle
-
-
-    LEVEL_DELTA_DECAY = {
-        0 : 0.9,
-        1 : 0.75,
-        2 : 0.55,
-        3 : 0.35,
-        4 : 0.15,
-    }
 
 
     def _clear_battle_stats(self):
@@ -113,9 +106,15 @@ class RedGymBattle:
         POKEMON_BATTLE_LEVEL_FLOOR = 1
         level_delta = avg_player_lvl - avg_enemy_level
         if level_delta < POKEMON_BATTLE_LEVEL_FLOOR:
-            return 0
+            return 1
 
-        return min(level_delta, len(self.LEVEL_DELTA_DECAY))
+        # view reward roll off: www.desmos.com/calculator
+        result = math.exp(level_delta * -0.56) + 0.05
+
+        if result > 1.0:
+            return 1
+        
+        return result
         
     def _calc_avg_pokemon_level(self, pokemon):        
         avg_level, size = 0, 0
@@ -171,9 +170,7 @@ class RedGymBattle:
     def get_battle_decay(self):
         avg_enemy_level = self._calc_avg_pokemon_level(self.env.game.battle.get_enemy_lineup_levels())
         avg_player_lvl = self._calc_avg_pokemon_level(self.env.game.player.get_player_lineup_levels())
-        decay = self._calc_level_decay(avg_enemy_level, avg_player_lvl)
-
-        return self.LEVEL_DELTA_DECAY.get(decay, 0.001)
+        return self._calc_level_decay(avg_enemy_level, avg_player_lvl)
     
     def save_pre_action_battle(self):
         if not self.env.game.battle.in_battle:
