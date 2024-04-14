@@ -447,6 +447,9 @@ class Map:
     def __init__(self, env):
         self.env = env
 
+    def get_current_map_ptr(self):
+        return np.uint16((self.env.ram_interface.read_memory(PLAYER_MAP_PTR) << 8) + self.env.ram_interface.read_memory(PLAYER_MAP_PTR - 0x01))
+
     def get_current_map(self):
         return self.env.ram_interface.read_memory(PLAYER_MAP)
     

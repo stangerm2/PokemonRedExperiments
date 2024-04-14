@@ -13,12 +13,13 @@ class RedGymMap:
 
         self.env = env
         self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
+        self.map_ptr_org = 0x00
         self.visited_pos = {}
         self.visited_pos_order = deque()
-        self.new_map = 0  # TODO: Inc/dec to 6
+        self.map_loading = False
+        self.new_map = False
         self.discovered_map = False
         self.moved_location = False  # indicates if the player moved 1 or more spot
-        self.discovered_location = False # indicates if the player is in previously unvisited location
         self.location_history = deque()
         self.steps_discovered = 0
         self.collisions = 0
@@ -185,41 +186,45 @@ class RedGymMap:
                 self.simple_screen_channels[self.simple_screen[y][x]][y][x] = 1
 
 
-    def save_post_action_pos(self):
+    def _is_main_world_map(self):
+        # Main outdoor maps (so far):
+        # 0x00 - Global, 0x11 - Cave, 0x03 - Forest
+        map_tileset = self.env.game.map.get_tileset_index()
+        return (map_tileset == 0x00 or map_tileset == 0x11 or map_tileset == 0x03)
+
+
+    def _update_map_coordinates(self):
+        self.new_map = False
         x_pos_new, y_pos_new, n_map_new = self.env.game.map.get_current_location()
         self.moved_location = not (self.x_pos_org == x_pos_new and
                                    self.y_pos_org == y_pos_new and
                                    self.n_map_org == n_map_new)
 
-        if self.moved_location:
-            # Bug check: AI is only allowed to move 0 or 1 spots per turn, new maps change x,y ref pos so don't count.
-            # When the game goes to a new map, it changes m first, then y,x will update on the next turn, still some corner cases like fly, blackout, bike
-            if self.new_map:
-                self.x_pos_org, self.y_pos_org, self.n_map_org = x_pos_new, y_pos_new, n_map_new
-                self.new_map -= 1
-            elif n_map_new == self.n_map_org:
-                if not (abs(self.x_pos_org - x_pos_new) + abs(self.y_pos_org - y_pos_new) <= 1):
-                    self.update_map_stats()
+        new_map = (n_map_new != self.n_map_org)
+        if new_map or self.map_loading:
+            self.map_loading = True
+            self.x_pos_org, self.y_pos_org, self.n_map_org = x_pos_new, y_pos_new, n_map_new
 
-                    debug_str = ""
-                    #while len(self.location_history):
-                    #    debug_str += self.location_history.popleft()
-                    # self.env.support.save_debug_string(debug_str)
-                    # assert False
-            else:
-                self.new_map = 6
+            if self.map_ptr_org == self.env.game.map.get_current_map_ptr():
+                return
 
-            if (x_pos_new, y_pos_new, n_map_new) in self.visited_pos:
-                self.discovered_location = True
+            self.new_map = True
+            self.map_loading = False
 
-            if n_map_new not in self.visited_maps:
+            # Don't count house's or they'll add to the visited reward scaler
+            if n_map_new not in self.visited_maps and self._is_main_world_map():
                 self.visited_maps.add(n_map_new)
                 self.discovered_map = True
 
+
+    def save_post_action_pos(self):
+        self._update_map_coordinates()
+
+
     def save_pre_action_pos(self):
         self.x_pos_org, self.y_pos_org, self.n_map_org = self.env.game.map.get_current_location()
-        self.discovered_location = False
         self.discovered_map = False
+        self.map_ptr_org = self.env.game.map.get_current_map_ptr()
 
         if len(self.visited_pos_order) > MAX_STEP_MEMORY:
             del_key = self.visited_pos_order.popleft()
@@ -250,11 +255,15 @@ class RedGymMap:
 
 
     def get_exploration_reward(self):
+        if self.env.game.battle.in_battle:
+            return 0
+
         x_pos, y_pos, map_n = self.env.game.map.get_current_location()
         if not self.moved_location:
             if (not (self.env.gameboy.action_history[0] == 5 or self.env.gameboy.action_history[0] == 6) and 
-                self.env.game.get_game_state() ==  self.env.game.GameState.EXPLORING and self.new_map == False):
+                self.env.game.get_game_state() == self.env.game.GameState.EXPLORING and not self.map_loading):
                 self.collisions += 1
+                return -0.1
         
             return 0
         elif (x_pos, y_pos, map_n) in self.visited_pos:
@@ -271,22 +280,14 @@ class RedGymMap:
             return 10
         else:
             return 1
-        
+
+
     def get_map_reward(self):
-        _STARTING_MAPS = {
-            0x00,  # Pallet Town
-            0x28,  # Oak's Lab
-            0x25,  # Moms house 1st floor
-            0x26,  # Moms house 2nd floor
-            0x27,  # Rival's house
-        }
-
-        map_n = self.env.game.map.get_current_map()
-
-        if map_n not in _STARTING_MAPS and self.discovered_map:
-            return len(self.visited_maps) * 2
+        if self.discovered_map and self._is_main_world_map():
+            return 10 * len(self.visited_maps)
         
         return 0
+
 
     def update_map_obs(self):
         if self.env.game.battle.in_battle:
