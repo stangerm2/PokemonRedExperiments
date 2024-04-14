@@ -83,6 +83,12 @@ class RedGymPlayer:
             
         return 0
     
+    def get_money_reward(self):
+        cur_money = self._get_player_money()
+        money_delta = cur_money - self.money
+
+        return money_delta / 100
+    
     def save_pre_action_player(self):
         self.bag_items = self._lookup_player_items(self.env.game.items.get_bag_item_ids(), self.env.game.items.get_bag_item_quantities())
         self.bank_items = self._lookup_player_items(self.env.game.items.get_pc_item_ids(), self.env.game.items.get_pc_item_quantities())

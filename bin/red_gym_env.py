@@ -266,6 +266,7 @@ class RedGymEnv(Env):
             'badges': self.player.get_badge_reward(),
             'pokecenter' : self.world.get_pokecenter_reward(),
             'item_gained': self.player.get_item_reward(),
+            'money': self.player.get_money_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward
