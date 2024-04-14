@@ -66,13 +66,11 @@ class RedGymPlayer:
                 break
 
         # Don't reward selling items
-        cur_money = self._get_player_money()
-        money_delta = cur_money - self.money
-        if money_delta > 0:
+        if item_delta < 0:
             return 0
             
         # item_norm could be pos bought item or neg sold item but both are good rewards, using should always win over buy/sell loops b/c selling halves money value
-        return 25 * item_norm
+        return 35 * item_norm
     
 
     def get_badge_reward(self):
