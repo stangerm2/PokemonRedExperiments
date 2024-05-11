@@ -1,0 +1,123 @@
+From 64ac4359023ff192d64ffbff00bdde6e3ca6efcb Mon Sep 17 00:00:00 2001
+From: Matthew Stanger <stangerm2@gmail.com>
+Date: Sat, 11 May 2024 15:47:25 -0700
+Subject: [PATCH] Line walk bonus
+
+Saving the line walk bonus as a patch, init runs didn't show improvement
+but current reward schems are fragial and may be the issue, so
+save this to try again later as patch.
+---
+ bin/red_gym_map.py | 46 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/bin/red_gym_map.py b/bin/red_gym_map.py
+index 05d40c0..824a800 100644
+--- a/bin/red_gym_map.py
++++ b/bin/red_gym_map.py
+@@ -1,3 +1,4 @@
++from enum import IntEnum
+ import numpy as np
+ from collections import deque
+ 
+@@ -7,6 +8,13 @@ from red_gym_obs_tester import RedGymObsTester
+ 
+ 
+ class RedGymMap:
++    class WalkingDirections(IntEnum):
++        UNKNOWN = -1
++        UP = 0
++        DOWN = 1
++        LEFT = 2
++        RIGHT = 3
++
+     def __init__(self, env):
+         if env.debug:
+             print('**** RedGymMap ****')
+@@ -25,6 +33,9 @@ class RedGymMap:
+         self.collisions = 0
+         self.collisions_lookup = {}
+         self.visited_maps = set()
++        self.newest_map = 0
++        self.line_steps = 0
++        self.walking_direction = self.WalkingDirections.UNKNOWN
+ 
+         self.visited = np.zeros((1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
+         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
+@@ -186,6 +197,30 @@ class RedGymMap:
+                 self.simple_screen_channels[self.simple_screen[y][x]][y][x] = 1
+ 
+ 
++    def _calc_line_steps(self, x_pos_new, y_pos_new):
++        if self.map_loading:
++            return
++                
++        x_delta = x_pos_new - self.x_pos_org
++        y_delta = y_pos_new - self.y_pos_org
++        if (self.moved_location and
++            (self.walking_direction == self.WalkingDirections.UP and y_delta < 0) or
++            (self.walking_direction == self.WalkingDirections.DOWN and y_delta > 0) or
++            (self.walking_direction == self.WalkingDirections.LEFT and x_delta < 0) or
++            (self.walking_direction == self.WalkingDirections.RIGHT and x_delta > 0) or
++            self.new_map):
++            self.line_steps += 1
++        else:
++            self.line_steps = 0
++
++            if x_delta != 0:
++                self.walking_direction = self.WalkingDirections.RIGHT if x_delta > 0 else self.WalkingDirections.LEFT
++            elif y_delta != 0:
++                self.walking_direction = self.WalkingDirections.DOWN if y_delta > 0 else self.WalkingDirections.UP
++            else:
++                self.walking_direction = self.WalkingDirections.UNKNOWN
++
++
+     def _is_main_world_map(self):
+         # Main outdoor maps (so far):
+         # 0x00 - Global, 0x11 - Cave, 0x03 - Forest
+@@ -214,6 +249,7 @@ class RedGymMap:
+             # Don't count house's or they'll add to the visited reward scaler
+             if n_map_new not in self.visited_maps and self._is_main_world_map():
+                 self.visited_maps.add(n_map_new)
++                self.newest_map = n_map_new
+                 self.discovered_map = True
+ 
+ 
+@@ -259,6 +295,11 @@ class RedGymMap:
+             return 0
+ 
+         x_pos, y_pos, map_n = self.env.game.map.get_current_location()
++        self._calc_line_steps(x_pos, y_pos)
++
++        #print(f"\n\naLine steps: {self.line_steps}")
++        #print(f"\nDirection: {self.walking_direction}")
++
+         if not self.moved_location:
+             if (not (self.env.gameboy.action_history[0] == 5 or self.env.gameboy.action_history[0] == 6) and 
+                 self.env.game.get_game_state() == self.env.game.GameState.EXPLORING and not self.map_loading):
+@@ -267,6 +308,7 @@ class RedGymMap:
+         
+             return 0
+         elif (x_pos, y_pos, map_n) in self.visited_pos:
++            self.line_steps = 0
+             return 0.01
+         
+         # FALL THROUGH: In new location
+@@ -279,6 +321,8 @@ class RedGymMap:
+         if audio_track == 0xC0 or (self.env.world.pokecenter_history <= 3 and audio_track == 0xBD):
+             return 10
+         else:
++            #in_newest_map_bonus = (self.newest_map == map_n) * 0.5
++            #return min(0.8 + (self.line_steps * 0.1), 1.5) + in_newest_map_bonus
+             return 1
+ 
+ 
+@@ -300,4 +344,4 @@ class RedGymMap:
+             self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
+             self._update_simple_screen_channel_obs()
+             
+-        self.update_map_stats()
++        self.update_map_stats()
+\ No newline at end of file
+-- 
+2.40.1
+
