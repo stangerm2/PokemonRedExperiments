@@ -159,14 +159,14 @@ class RedGymEnv(Env):
 
 
     def _run_pre_action_steps(self):
-        self.player.save_pre_action_player()
         self.map.save_pre_action_pos()
+        self.player.save_pre_action_player()
         self.battle.save_pre_action_battle()
 
     def _run_post_action_steps(self):
         self.map.save_post_action_pos()
-        self.battle.save_post_action_battle()
         self.player.save_post_action_player()
+        self.battle.save_post_action_battle()
 
     def get_check_if_done(self):
         return self.support.check_if_done()
@@ -186,7 +186,10 @@ class RedGymEnv(Env):
             'k/d': self.battle.get_kill_to_death(),
             'dmg_ratio': self.battle.get_damage_done_vs_taken(),
             'badges': self.player.current_badges,
-            'pokecenters': self.world.pokecenter_history.bit_count()
+            'pokecenters': self.world.pokecenter_history.bit_count(),
+            'items_bought' : abs(self.player.items_bought),
+            'items_found' : self.player.items_found,
+            'items_sold' : abs(self.player.items_sold)
         })
 
     def _get_observation(self):
