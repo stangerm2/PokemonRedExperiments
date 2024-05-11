@@ -284,7 +284,7 @@ class RedGymMap:
 
     def get_map_reward(self):
         if self.discovered_map and self._is_main_world_map():
-            return 10 * len(self.visited_maps)
+            return min(30 * len(self.visited_maps), 1000)
         
         return 0
 

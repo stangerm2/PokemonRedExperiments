@@ -227,16 +227,16 @@ class RedGymBattle:
         if not self.env.game.battle.in_battle:
             return 0
         elif not self.battle_won:
-            return 0.1
+            return 0.15
         
         # Won Battle falls though
-        BATTLE_MOVE_CEILING = 350
+        BATTLE_MOVE_CEILING = 625
         battle_type = self.env.game.battle.get_battle_type()
         if battle_type == BattleTypes.WILD_BATTLE:
             return 0
         elif battle_type == BattleTypes.TRAINER_BATTLE:
             pokemon_fought = self.env.game.battle.get_enemy_party_count()
-            return max(500 * pokemon_fought, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt * 5) * (self.get_battle_decay() * 2)
+            return max(400 * pokemon_fought, (BATTLE_MOVE_CEILING * pokemon_fought) - self.current_battle_action_cnt * 5) * (self.get_battle_decay() * 2)
         # TODO: Need to ID Gym Battle
         #elif battle_type == BattleTypes.GYM_BATTLE):
         #    return 600
@@ -289,6 +289,9 @@ class RedGymBattle:
         return 0
         
     def _get_battle_stats_reward(self):
+        if self.player_pokemon_switch or self.enemy_pokemon_switch:
+            return 0
+
         player_modifiers_delta = self.post_turn.player_modifiers_sum - self.pre_turn.player_modifiers_sum  # pos good, neg bad
         enemy_modifiers_delta = self.post_turn.enemy_modifiers_sum - self.pre_turn.enemy_modifiers_sum  # pos bad, neg good
         player_hp_delta = self.post_turn.player_hp_cur - self.pre_turn.player_hp_cur  # pos good, neg bad
@@ -297,13 +300,13 @@ class RedGymBattle:
         reward = 0
 
         if player_modifiers_delta > 0:
-            reward += 9
+            reward += 15
         if enemy_modifiers_delta < 0:
-            reward += 9
+            reward += 15
         if player_hp_delta > 0:
-            reward += 200 * max((player_hp_delta / self.post_turn.player_hp_total), 0.375)
+            reward += 250 * max((player_hp_delta / self.post_turn.player_hp_total), 0.375)
         if enemy_hp_delta < 0:
-            reward += 50 * max((abs(enemy_hp_delta) / self.post_turn.enemy_hp_total), 0.375) * self.post_turn.type_hint
+            reward += 75 * max((abs(enemy_hp_delta) / self.post_turn.enemy_hp_total), 0.375) * self.post_turn.type_hint
         if self.post_turn.player_status == 0 and self.pre_turn.player_status != 0:
             reward += 200
         if self.post_turn.enemy_status != 0 and self.pre_turn.enemy_status == 0:
