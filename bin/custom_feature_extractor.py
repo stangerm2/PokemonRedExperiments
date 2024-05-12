@@ -17,8 +17,8 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         # Fully connected layer for coordinates
-        self.coordinates_fc = nn.Sequential(
-            nn.Linear(3 * 8, features_dim),  # Flattened size of coordinates, repeated 3 times
+        self.position_fc = nn.Sequential(
+            nn.Linear(300, features_dim),  # Flattened size of coordinates, repeated 3 times
             nn.ReLU()
         )
 
@@ -128,8 +128,15 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
 
 
         # Game Class
-        coordinates_input = observations["coordinates"].view(batch_size, -1)
-        coordinates_features = self.coordinates_fc(coordinates_input).to(device)
+        #coordinates_input = observations["coordinates"].view(batch_size, -1)
+        coords_input = observations["coords"].view(batch_size, -1)
+        connections_input = observations["connections"].view(batch_size, -1)
+        #position_input = torch.cat([
+            #coordinates_input,
+            #coords_input,
+            #connections_input,
+        #], dim=1)
+        position_features = self.position_fc(coords_input).to(device)
 
         action_input = observations["action"].int().view(batch_size, -1).to(device).float()
         game_state_input = observations["game_state"].int().view(batch_size, -1).to(device).float()
@@ -261,7 +268,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         # Final FC layer
         combined_input = torch.cat([
             screen_features,
-            coordinates_features,
+            position_features,
             game_state_lstm_features,
             battle_turn_features,
             badges_input,

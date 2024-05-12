@@ -48,10 +48,10 @@ if __name__ == '__main__':
         'explore_weight': 3  # 2.5
     }
 
-    num_cpu = 1  # Also sets the number of episodes per training iteration
+    num_cpu = 124  # Also sets the number of episodes per training iteration
 
     if 0 < num_cpu < 50:
-        env_config['debug'] = True
+        #env_config['debug'] = True
         env_config['headless'] = False
         use_wandb_logging = False
 
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     # put a checkpoint here you want to start from
     file_name = ''
-    #file_name = '../' + "saved_runs/session_6ff6aae5/poke_355532800_steps.zip"
+    #file_name = '../' + "saved_runs/session_a833b1a2/poke_3555328_steps.zip"
 
     model = None
     checkpoint_exists = exists(file_name)
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     else:
         # policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
         model = PPO("MultiInputPolicy", env, policy_kwargs={"features_extractor_class": CustomFeatureExtractor, "features_extractor_kwargs": {"features_dim": 64}},
-                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.997, ent_coef=0.01,
+                    verbose=1, n_steps=2048 // 4, batch_size=512, n_epochs=3, gamma=0.999, ent_coef=0.01,
                     seed=GLOBAL_SEED, device="auto", tensorboard_log=sess_path)
 
     print(model.policy)

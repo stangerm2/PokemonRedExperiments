@@ -23,7 +23,9 @@ def initialize_observation_space(extra_buttons):
             # Game View:
             "screen": spaces.Box(low=0, high=1, shape=(11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.float32),
             "visited": spaces.Box(low=0, high=1, shape=(1, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8),
-            "coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.uint8),
+            #"coordinates": spaces.Box(low=0, high=1, shape=(3, BITS_PER_BYTE), dtype=np.uint8),
+            "connections": spaces.Box(low=0, high=1, shape=(4, ), dtype=np.float32),
+            "coords": spaces.MultiDiscrete([100] * 3), # 151
 
             # Game:
             "action": spaces.MultiDiscrete([7] * OBSERVATION_MEMORY_SIZE),
@@ -187,9 +189,9 @@ class RedGymEnv(Env):
             'dmg_ratio': self.battle.get_damage_done_vs_taken(),
             'badges': self.player.current_badges,
             'pokecenters': self.world.pokecenter_history.bit_count(),
-            'items_bought' : abs(self.player.items_bought),
-            'items_found' : self.player.items_found,
-            'items_sold' : abs(self.player.items_sold)
+            #'items_bought' : abs(self.player.items_bought),
+            #'items_found' : self.player.items_found,
+            #'items_sold' : abs(self.player.items_sold)
         })
 
     def _get_observation(self):
@@ -199,7 +201,9 @@ class RedGymEnv(Env):
             # Game View:
             "screen":      self.map.simple_screen_channels,
             "visited":     self.map.visited,
-            "coordinates": self.map.coordinates,
+            #"coordinates": self.map.coordinates,
+            "connections": self.map.connections,
+            "coords": self.map.coords,
 
             # Game:
             "action":      self.gameboy.action_history,
@@ -269,7 +273,7 @@ class RedGymEnv(Env):
             'badges': self.player.get_badge_reward(),
             'pokecenter' : self.world.get_pokecenter_reward(),
             'item_gained': self.player.get_item_reward(),
-            'money': self.player.get_money_reward(),
+            #'money': self.player.get_money_reward(),
         }
 
         # TODO: If pass in some test flag run just a single test reward

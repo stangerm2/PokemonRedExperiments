@@ -520,6 +520,13 @@ class Map:
                                      self.env.ram_interface.read_memory(WARP_TILE_Y_ENTRY + i * WARP_TILE_ENTRY_OFFSET)))
         
         return warp_tile_positions
+    
+    def get_map_size(self):
+        # 2x blocks per tile
+        return self.env.ram_interface.read_memory(CURRENT_MAP_HEIGHT) * 2, self.env.ram_interface.read_memory(CURRENT_MAP_WIDTH) * 2
+    
+    def get_map_connection_mask(self):
+        return self.env.ram_interface.read_memory(CURRENT_MAP_CONNECTIONS)
 
 
 class Menus:

@@ -12,7 +12,7 @@ class RedGymMap:
             print('**** RedGymMap ****')
 
         self.env = env
-        self.x_pos_org, self.y_pos_org, self.n_map_org = None, None, None
+        self.x_pos_org, self.y_pos_org, self.n_map_org = 0, 0, 0
         self.map_ptr_org = 0x00
         self.visited_pos = {}
         self.visited_pos_order = deque()
@@ -30,7 +30,11 @@ class RedGymMap:
         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen_channels = np.zeros((11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.uint8)  # x,y,map stacked
+        self.connections = np.zeros((4, ), dtype=np.float32)  #  distance to each map connection north, south, east, west
         #self.tester = RedGymObsTester(self)
+
+        self.coords =  np.zeros((3, ), dtype=np.uint8)
+
 
 
     def _clear_map_obs(self):
@@ -38,6 +42,9 @@ class RedGymMap:
         self.simple_screen = np.zeros((SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.simple_screen_channels = np.zeros((11, SCREEN_VIEW_SIZE, SCREEN_VIEW_SIZE), dtype=np.uint8)
         self.coordinates = np.zeros((3, BITS_PER_BYTE), dtype=np.uint8)
+
+        self.coords = np.zeros((3, ), dtype=np.uint8)
+
 
 
     def _update_collision_lookup(self, collision_ptr):
@@ -78,6 +85,8 @@ class RedGymMap:
             x_pos_binary = format(x_pos_new, f'0{BITS_PER_BYTE}b')
             y_pos_binary = format(y_pos_new, f'0{BITS_PER_BYTE}b')
             m_pos_binary = format(n_map_new, f'0{BITS_PER_BYTE}b')
+
+            self.coords = [x_pos_new, y_pos_new, n_map_new]
         
             # appends the x,y, pos binary form to the bottom of the screen and visited matrix's
             for i, bit in enumerate(x_pos_binary):
@@ -184,6 +193,16 @@ class RedGymMap:
         for y in range(SCREEN_VIEW_SIZE):
             for x in range(SCREEN_VIEW_SIZE):
                 self.simple_screen_channels[self.simple_screen[y][x]][y][x] = 1
+
+
+    def _update_connections(self):
+        height, width = self.env.game.map.get_map_size()
+        connection_mask = self.env.game.map.get_map_connection_mask()
+
+        self.connections[0] = 1 - ((height - self.y_pos_org) / height) if connection_mask & 0b1000 else 0  # north
+        self.connections[1] = 1 - ((self.y_pos_org + 1) / height) if connection_mask & 0b0100 else 0       # south
+        self.connections[2] = 1 - ((self.x_pos_org + 1) / width)  if connection_mask & 0b0001 else 0       # east
+        self.connections[3] = 1 - ((width - self.x_pos_org) / width)  if connection_mask & 0b0010 else 0   # west
 
 
     def _is_main_world_map(self):
@@ -299,5 +318,6 @@ class RedGymMap:
             self._update_simple_screen_obs(x_pos_new, y_pos_new, n_map_new)
             self._update_pos_obs(x_pos_new, y_pos_new, n_map_new)
             self._update_simple_screen_channel_obs()
+            self._update_connections()
             
         self.update_map_stats()

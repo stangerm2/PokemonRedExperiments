@@ -10,6 +10,9 @@ PLAYER_ANIM_FRAME_COUNTER = 0xC108
 PLAYER_FACING_DIR = 0xC109
 PLAYER_COLLISION = 0xC10C # Running into NPC, doesn't count map boundary collisions
 PLAYER_IN_GRASS = 0xC207 # 0x80 in poke grass, else 00
+CURRENT_MAP_HEIGHT = 0xD368
+CURRENT_MAP_WIDTH = 0xD369
+CURRENT_MAP_CONNECTIONS = 0xD370
 
 # Player's surroundings tiles (7x7)[not accurate when in chat/menu screen, as boxes overlay map tiles]
 TILE_COL_0_ROW_0 = 0xC3B4
