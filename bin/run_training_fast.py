@@ -34,6 +34,8 @@ def make_env(thread_id, env_conf, seed=0):
 
 if __name__ == '__main__':
 
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
     use_wandb_logging = True
     ep_length = 2048 * 2
     sess_id = str(uuid.uuid4())[:8]

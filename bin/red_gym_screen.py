@@ -24,7 +24,7 @@ class RedGymScreen:
         self.prepare_video_recording_if_enabled()
 
     def render(self, reduce_res=True, update_mem=True):
-        game_screen = self.env.gameboy.pyboy.botsupport_manager().screen().screen_ndarray()
+        game_screen = self.env.gameboy.pyboy.screen.ndarray
 
         if reduce_res:
             game_screen = self._reduce_resolution(game_screen)

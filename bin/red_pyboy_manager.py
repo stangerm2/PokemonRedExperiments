@@ -1,7 +1,9 @@
 import sys
 import numpy as np
 
-from pyboy import PyBoy, WindowEvent
+from pyboy import PyBoy
+from pyboy.utils import WindowEvent
+
 from red_env_constants import *
 
 
@@ -59,13 +61,11 @@ class PyBoyManager:
         self.setup_pyboy()
 
     def setup_pyboy(self):
-        window_type = 'dummy' if self.env.headless else 'SDL2'
+        window_type = 'null' if self.env.headless else 'SDL2'
         self.pyboy = PyBoy(
             self.env.rom_location,
-            debugging=False,
-            disable_input=False,
+            sound=False,
             window_type=window_type,
-            hide_window='--quiet' in sys.argv,
         )
 
         if not self.env.headless:
@@ -83,7 +83,7 @@ class PyBoyManager:
                 self.pyboy.load_state(f)
 
     def get_memory_value(self, addr):
-        return self.pyboy.get_memory_value(addr)
+        return self.pyboy.memory[addr]
 
     def _read_bit(self, addr, bit: int) -> bool:
         return bin(256 + self.get_memory_value(addr))[-bit - 1] == '1'
@@ -99,8 +99,9 @@ class PyBoyManager:
         return False
 
     def run_dpad_cmd(self, action, termination_action):
+        render = True
         if not self.env.save_video and self.env.headless:
-            self.pyboy._rendering(False)
+            render = False
 
         # press button then release after some steps
         self.pyboy.send_input(action)
@@ -118,7 +119,7 @@ class PyBoyManager:
         count, animation_started = 0, False
         for i in range(frames):
             count += 1
-            self.pyboy.tick()
+            self.pyboy.tick(1, False)
 
             # TODO: Magic num fix when adding RAM constants commit
             moving_animation = self.get_memory_value(0xC108) != 0 or self.get_memory_value(0xC107) != 0
@@ -138,8 +139,8 @@ class PyBoyManager:
         if not animation_started:
             self.pyboy.send_input(termination_action)
 
-        self.pyboy._rendering(True)
-        self.pyboy.tick()
+        #self.pyboy._rendering(True)
+        self.pyboy.tick(1, render)
 
         #if not (termination_action == WindowEvent.RELEASE_BUTTON_B or termination_action == WindowEvent.RELEASE_BUTTON_A):
         #    self.env.support.save_screenshot()

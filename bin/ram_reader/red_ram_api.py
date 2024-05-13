@@ -1,6 +1,7 @@
 from enum import IntEnum
 import numpy as np
-from pyboy import PyBoy, WindowEvent
+from pyboy import PyBoy
+from pyboy.utils import WindowEvent
 
 from .red_memory_battle import *
 from .red_memory_env import *
@@ -16,10 +17,10 @@ class PyBoyRAMInterface:
         self.pyboy = pyboy
 
     def read_memory(self, address):
-        return self.pyboy.get_memory_value(address)
+        return self.pyboy.memory[address]
 
     def write_memory(self, address, value):
-        return self.pyboy.set_memory_value(address, value)
+        self.pyboy.memory[address] = value
         
 
 class Game:
@@ -463,7 +464,7 @@ class Map:
         return self.env.ram_interface.read_memory(TILESET_INDEX)
 
     def get_collision_tiles(self):
-        collision_ptr = self.get_collision_pointer()
+        collision_ptr = int(self.get_collision_pointer())
         collection_tiles = set()
         while True:
             collision = self.env.ram_interface.read_memory(collision_ptr)
@@ -476,9 +477,9 @@ class Map:
         return collection_tiles
     
     def get_screen_tilemaps(self):
-        bsm = self.env.ram_interface.pyboy.botsupport_manager()
-        ((scx, scy), (wx, wy)) = bsm.screen().tilemap_position()
-        tilemap = np.array(bsm.tilemap_background()[:, :])
+        #bsm = self.env.ram_interface.pyboy.botsupport_manager()
+        ((scx, scy), (wx, wy)) = self.env.ram_interface.pyboy.screen.get_tilemap_position()
+        tilemap = np.array(self.env.ram_interface.pyboy.tilemap_background[:, :])
         screen_tiles = (np.roll(np.roll(tilemap, -scy // 8, axis=0), -scx // 8, axis=1)[:18, :20] - 0x100)
 
         top_left_tiles = screen_tiles[:screen_tiles.shape[0]: 2,::2]
